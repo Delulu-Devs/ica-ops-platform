@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "biomejs.biome",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "mikestead.dotenv",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+    ]
+}

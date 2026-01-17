@@ -4,6 +4,7 @@
 node_modules
 .pnp
 .pnp.js
+bun.lockb
 
 # Local env files
 .env
@@ -14,6 +15,7 @@ node_modules
 
 # Testing
 coverage
+.nyc_output
 
 # Turbo
 .turbo
@@ -27,12 +29,33 @@ out/
 build
 dist
 
+# TypeScript
+*.tsbuildinfo
 
 # Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+bun-debug.log*
+
+# Drizzle
+drizzle/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Storybook
+storybook-static/
+
+# IDE
+.idea/
+*.swp
+*.swo
 
 # Misc
 .DS_Store
 *.pem
+Thumbs.db
+/dev-docs/
