@@ -212,7 +212,7 @@ docker-compose up -d
 
 | Role   | Email          | Password  |
 | ------ | -------------- | --------- |
-| Admin  | admin@ica.com  | admin123  |
+| Admin  | admin@ica.com  | admin125  |
 | Coach  | coach@ica.com  | coach123  |
 | Parent | parent@ica.com | parent123 |
 
