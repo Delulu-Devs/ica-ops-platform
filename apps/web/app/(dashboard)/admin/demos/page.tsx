@@ -1,7 +1,17 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Calendar, CheckCircle, Clock, Loader2, MoreHorizontal, Plus, XCircle } from 'lucide-react';
+import {
+  Calendar,
+  CalendarClock,
+  CheckCircle,
+  Clock,
+  Eye,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +53,9 @@ export default function DemosPage() {
   const [outcomeDemoId, setOutcomeDemoId] = useState<string | null>(null);
   const [outcomeDialogOpen, setOutcomeDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [selectedDemoId, setSelectedDemoId] = useState<string | null>(null);
   const limit = 10;
 
   // Form state for scheduling demo
@@ -56,10 +69,25 @@ export default function DemosPage() {
     duration: '30',
   });
 
+  // Reschedule form state
+  const [rescheduleData, setRescheduleData] = useState({
+    scheduledDate: '',
+    scheduledTime: '',
+    duration: '30',
+  });
+
   const { data, isLoading, refetch } = trpc.demo.list.useQuery({
     limit,
     offset: page * limit,
   });
+
+  // Get demo details query
+  const { data: demoDetails, isLoading: isDetailsLoading } = trpc.demo.getById.useQuery(
+    { id: selectedDemoId || '' },
+    {
+      enabled: !!selectedDemoId && (isDetailsDialogOpen || isRescheduleDialogOpen),
+    }
+  );
 
   const updateStatusMutation = trpc.demo.updateStatus.useMutation({
     onSuccess: () => {
@@ -84,12 +112,34 @@ export default function DemosPage() {
     },
   });
 
+  // Reschedule demo mutation
+  const rescheduleDemoMutation = trpc.demo.reschedule.useMutation({
+    onSuccess: () => {
+      toast.success('Demo rescheduled successfully!');
+      setIsRescheduleDialogOpen(false);
+      setSelectedDemoId(null);
+      resetRescheduleForm();
+      refetch();
+    },
+    onError: (error) => {
+      toast.error('Failed to reschedule demo', { description: error.message });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       studentName: '',
       parentName: '',
       parentEmail: '',
       timezone: 'Asia/Kolkata',
+      scheduledDate: '',
+      scheduledTime: '',
+      duration: '30',
+    });
+  };
+
+  const resetRescheduleForm = () => {
+    setRescheduleData({
       scheduledDate: '',
       scheduledTime: '',
       duration: '30',
@@ -128,6 +178,33 @@ export default function DemosPage() {
     });
   };
 
+  const handleReschedule = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedDemoId || !rescheduleData.scheduledDate || !rescheduleData.scheduledTime) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const startDateTime = new Date(
+      `${rescheduleData.scheduledDate}T${rescheduleData.scheduledTime}`
+    );
+    const endDateTime = new Date(
+      startDateTime.getTime() + parseInt(rescheduleData.duration) * 60 * 1000
+    );
+
+    if (startDateTime < new Date()) {
+      toast.error('Cannot schedule demo in the past');
+      return;
+    }
+
+    rescheduleDemoMutation.mutate({
+      id: selectedDemoId,
+      scheduledStart: startDateTime.toISOString(),
+      scheduledEnd: endDateTime.toISOString(),
+    });
+  };
+
   const handleStatusUpdate = (id: string, status: any) => {
     updateStatusMutation.mutate({ id, status });
   };
@@ -135,6 +212,16 @@ export default function DemosPage() {
   const openOutcomeDialog = (id: string) => {
     setOutcomeDemoId(id);
     setOutcomeDialogOpen(true);
+  };
+
+  const openDetailsDialog = (id: string) => {
+    setSelectedDemoId(id);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const openRescheduleDialog = (id: string) => {
+    setSelectedDemoId(id);
+    setIsRescheduleDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -145,6 +232,8 @@ export default function DemosPage() {
         return 'bg-green-100 text-green-800 hover:bg-green-100/80';
       case 'NO_SHOW':
         return 'bg-red-100 text-red-800 hover:bg-red-100/80';
+      case 'RESCHEDULED':
+        return 'bg-orange-100 text-orange-800 hover:bg-orange-100/80';
       case 'INTERESTED':
         return 'bg-purple-100 text-purple-800 hover:bg-purple-100/80';
       case 'CONVERTED':
@@ -259,6 +348,13 @@ export default function DemosPage() {
                             Mark No Show
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => openRescheduleDialog(demo.id)}
+                            disabled={!['BOOKED', 'NO_SHOW', 'RESCHEDULED'].includes(demo.status)}
+                          >
+                            <CalendarClock className="mr-2 h-4 w-4 text-orange-600" />
+                            Reschedule
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => handleStatusUpdate(demo.id, 'CANCELLED')}
                             disabled={['CANCELLED', 'CONVERTED'].includes(demo.status)}
                           >
@@ -266,7 +362,10 @@ export default function DemosPage() {
                             Cancel Demo
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openDetailsDialog(demo.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -302,6 +401,189 @@ export default function DemosPage() {
         demoId={outcomeDemoId}
         onSuccess={refetch}
       />
+
+      {/* View Demo Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Demo Details</DialogTitle>
+            <DialogDescription>Complete information about this demo session.</DialogDescription>
+          </DialogHeader>
+          {isDetailsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : demoDetails ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Student Name</p>
+                  <p className="font-medium">{demoDetails.studentName}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Parent Name</p>
+                  <p className="font-medium">{demoDetails.parentName}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Parent Email</p>
+                <p className="font-medium">{demoDetails.parentEmail}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Scheduled Date</p>
+                  <p className="font-medium">
+                    {format(new Date(demoDetails.scheduledStart), 'PPP')}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Time</p>
+                  <p className="font-medium">
+                    {format(new Date(demoDetails.scheduledStart), 'p')} -{' '}
+                    {format(new Date(demoDetails.scheduledEnd), 'p')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge className={cn(getStatusColor(demoDetails.status))}>
+                    {demoDetails.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Timezone</p>
+                  <p className="font-medium">{demoDetails.timezone || 'Not specified'}</p>
+                </div>
+              </div>
+
+              {demoDetails.recommendedStudentType && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Recommended Type</p>
+                    <p className="font-medium">{demoDetails.recommendedStudentType}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Recommended Level</p>
+                    <p className="font-medium">{demoDetails.recommendedLevel || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
+
+              {demoDetails.adminNotes && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Admin Notes</p>
+                  <p className="text-sm p-3 bg-muted rounded-lg">{demoDetails.adminNotes}</p>
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground pt-4 border-t">
+                Created: {format(new Date(demoDetails.createdAt), 'PPp')}
+                {demoDetails.updatedAt && (
+                  <> • Updated: {format(new Date(demoDetails.updatedAt), 'PPp')}</>
+                )}
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Demo Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Reschedule Demo</DialogTitle>
+            <DialogDescription>Select a new date and time for this demo session.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleReschedule} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rescheduleDate">New Date *</Label>
+                <Input
+                  id="rescheduleDate"
+                  type="date"
+                  value={rescheduleData.scheduledDate}
+                  onChange={(e) =>
+                    setRescheduleData({
+                      ...rescheduleData,
+                      scheduledDate: e.target.value,
+                    })
+                  }
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rescheduleTime">New Time *</Label>
+                <Input
+                  id="rescheduleTime"
+                  type="time"
+                  value={rescheduleData.scheduledTime}
+                  onChange={(e) =>
+                    setRescheduleData({
+                      ...rescheduleData,
+                      scheduledTime: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rescheduleDuration">Duration (minutes)</Label>
+              <Input
+                id="rescheduleDuration"
+                type="number"
+                value={rescheduleData.duration}
+                onChange={(e) =>
+                  setRescheduleData({
+                    ...rescheduleData,
+                    duration: e.target.value,
+                  })
+                }
+                min={15}
+                max={120}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsRescheduleDialogOpen(false);
+                  setSelectedDemoId(null);
+                  resetRescheduleForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={rescheduleDemoMutation.isPending}>
+                {rescheduleDemoMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Rescheduling...
+                  </>
+                ) : (
+                  <>
+                    <CalendarClock className="mr-2 h-4 w-4" />
+                    Reschedule
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Schedule Demo Dialog */}
       <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
