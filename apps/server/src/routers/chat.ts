@@ -3,7 +3,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, chatMessages, chatRoomMembers } from '../db/schema';
+import { accounts, chatMessages, chatRoomMembers, coaches, students } from '../db/schema';
 import { coachProcedure, protectedProcedure, router } from '../trpc';
 
 const sendMessageSchema = z.object({
@@ -24,6 +24,52 @@ const createDMSchema = z.object({
 });
 
 export const chatRouter = router({
+  getContacts: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role === 'ADMIN') {
+      // Get all coaches
+      const coachesList = await ctx.db
+        .select({
+          accountId: coaches.accountId,
+          name: coaches.name,
+          email: accounts.email,
+          role: sql<'COACH'>`'COACH'`,
+        })
+        .from(coaches)
+        .innerJoin(accounts, eq(coaches.accountId, accounts.id));
+
+      // Get all students (parents)
+      const parentsList = await ctx.db
+        .select({
+          accountId: students.accountId,
+          name: students.parentName,
+          email: accounts.email,
+          role: sql<'CUSTOMER'>`'CUSTOMER'`,
+        })
+        .from(students)
+        .innerJoin(accounts, eq(students.accountId, accounts.id));
+
+      // Deduplicate parents by accountId
+      const uniqueParents = Array.from(
+        new Map(parentsList.map((p) => [p.accountId, p])).values()
+      );
+
+      return [...coachesList, ...uniqueParents];
+    } else {
+      // Non-admins can only contact Admins
+      const admins = await ctx.db
+        .select({
+          accountId: accounts.id,
+          name: sql<string>`'Admin'`,
+          email: accounts.email,
+          role: accounts.role,
+        })
+        .from(accounts)
+        .where(eq(accounts.role, 'ADMIN'));
+
+      return admins;
+    }
+  }),
+
   getRooms: protectedProcedure.query(async ({ ctx }) => {
     const memberships = await ctx.db
       .select()
