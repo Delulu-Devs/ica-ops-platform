@@ -1,24 +1,20 @@
 'use client';
 
 import { format } from 'date-fns';
-import {
-  Calendar,
-  CheckCircle,
-  Clock,
-  MoreHorizontal,
-  XCircle,
-} from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Loader2, MoreHorizontal, Plus, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +23,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -44,7 +42,19 @@ export default function DemosPage() {
   const [page, setPage] = useState(0);
   const [outcomeDemoId, setOutcomeDemoId] = useState<string | null>(null);
   const [outcomeDialogOpen, setOutcomeDialogOpen] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const limit = 10;
+
+  // Form state for scheduling demo
+  const [formData, setFormData] = useState({
+    studentName: '',
+    parentName: '',
+    parentEmail: '',
+    timezone: 'Asia/Kolkata',
+    scheduledDate: '',
+    scheduledTime: '',
+    duration: '30',
+  });
 
   const { data, isLoading, refetch } = trpc.demo.list.useQuery({
     limit,
@@ -61,10 +71,67 @@ export default function DemosPage() {
     },
   });
 
+  // Create demo mutation
+  const createDemoMutation = trpc.demo.create.useMutation({
+    onSuccess: () => {
+      toast.success('Demo scheduled successfully!');
+      setIsScheduleDialogOpen(false);
+      resetForm();
+      refetch();
+    },
+    onError: (error) => {
+      toast.error('Failed to schedule demo', { description: error.message });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      studentName: '',
+      parentName: '',
+      parentEmail: '',
+      timezone: 'Asia/Kolkata',
+      scheduledDate: '',
+      scheduledTime: '',
+      duration: '30',
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      !formData.studentName ||
+      !formData.parentName ||
+      !formData.parentEmail ||
+      !formData.scheduledDate ||
+      !formData.scheduledTime
+    ) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const startDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + parseInt(formData.duration) * 60 * 1000);
+
+    if (startDateTime < new Date()) {
+      toast.error('Cannot schedule demo in the past');
+      return;
+    }
+
+    createDemoMutation.mutate({
+      studentName: formData.studentName,
+      parentName: formData.parentName,
+      parentEmail: formData.parentEmail,
+      timezone: formData.timezone,
+      scheduledStart: startDateTime.toISOString(),
+      scheduledEnd: endDateTime.toISOString(),
+    });
+  };
+
   const handleStatusUpdate = (id: string, status: any) => {
     updateStatusMutation.mutate({ id, status });
   };
-  
+
   const openOutcomeDialog = (id: string) => {
     setOutcomeDemoId(id);
     setOutcomeDialogOpen(true);
@@ -98,8 +165,8 @@ export default function DemosPage() {
             Manage scheduled demos, track attendance, and monitor conversions.
           </p>
         </div>
-        <Button>
-          <Calendar className="mr-2 h-4 w-4" />
+        <Button onClick={() => setIsScheduleDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
           Schedule Demo
         </Button>
       </div>
@@ -126,7 +193,9 @@ export default function DemosPage() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Loading demos...
+                    <div className="flex justify-center items-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : data?.demos.length === 0 ? (
@@ -233,6 +302,127 @@ export default function DemosPage() {
         demoId={outcomeDemoId}
         onSuccess={refetch}
       />
+
+      {/* Schedule Demo Dialog */}
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Schedule New Demo</DialogTitle>
+            <DialogDescription>
+              Book a demo session for a prospective student. They will receive a confirmation email.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="studentName">Student Name *</Label>
+                <Input
+                  id="studentName"
+                  value={formData.studentName}
+                  onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+                  placeholder="Enter student name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="parentName">Parent Name *</Label>
+                <Input
+                  id="parentName"
+                  value={formData.parentName}
+                  onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                  placeholder="Enter parent name"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentEmail">Parent Email *</Label>
+              <Input
+                id="parentEmail"
+                type="email"
+                value={formData.parentEmail}
+                onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                placeholder="parent@email.com"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="scheduledDate">Date *</Label>
+                <Input
+                  id="scheduledDate"
+                  type="date"
+                  value={formData.scheduledDate}
+                  onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="scheduledTime">Time *</Label>
+                <Input
+                  id="scheduledTime"
+                  type="time"
+                  value={formData.scheduledTime}
+                  onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  min={15}
+                  max={120}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                <Input
+                  id="timezone"
+                  value={formData.timezone}
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                  placeholder="e.g., Asia/Kolkata"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsScheduleDialogOpen(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createDemoMutation.isPending}>
+                {createDemoMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Scheduling...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Schedule Demo
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
