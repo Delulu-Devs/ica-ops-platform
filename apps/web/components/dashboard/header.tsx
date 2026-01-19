@@ -1,7 +1,8 @@
 'use client';
 
-import { LogOut, User } from 'lucide-react';
+import { LogOut, Menu, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,22 +13,48 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { disconnectSocket } from '@/lib/socket';
 import { trpc } from '@/lib/trpc';
 import { useAuthStore } from '@/store/useAuthStore';
+import { SidebarContent } from './sidebar';
 
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const logoutMutation = trpc.auth.logout.useMutation();
 
-  // Optional: Pre-fetch or sync user state if needed, but Zustand persistence handles most
+  const handleLogout = async () => {
+    try {
+      // Call server to invalidate refresh tokens
+      await logoutMutation.mutateAsync();
+    } catch (err) {
+      // Continue with logout even if server call fails
+      console.error('Server logout failed:', err);
+    }
 
-  const handleLogout = () => {
+    // Disconnect Socket.io
+    disconnectSocket();
+
+    // Clear local auth state
     logout();
-    router.push('/login'); // or root
+    router.push('/login');
   };
 
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="icon" className="md:hidden shrink-0">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle navigation menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 border-r-0 max-w-xs">
+          <SidebarContent onNavigate={() => setSheetOpen(false)} />
+        </SheetContent>
+      </Sheet>
       <div className="flex-1">
         <h1 className="text-lg font-semibold md:text-xl">
           {user?.role === 'ADMIN'
@@ -43,7 +70,10 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/avatars/01.png" alt={user?.email || 'User'} />
+                <AvatarImage
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email}`}
+                  alt={user?.email || 'User'}
+                />
                 <AvatarFallback>{user?.email?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
             </Button>

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { format } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { format } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +13,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { trpc } from '@/lib/trpc';
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
 
 interface BlockTimeDialogProps {
   open: boolean;
@@ -35,48 +35,48 @@ export function BlockTimeDialog({
   onOpenChange,
   onSuccess,
 }: BlockTimeDialogProps) {
-  const [date, setDate] = useState<Date>();
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
-  const [reason, setReason] = useState('');
+  const [date, setDate] = useState<Date | undefined>();
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
+  const [reason, setReason] = useState("");
 
   const blockTimeMutation = trpc.coach.blockTime.useMutation({
     onSuccess: () => {
-      toast.success('Time blocked successfully');
+      toast.success("Time blocked successfully");
       onSuccess();
       onOpenChange(false);
       resetForm();
     },
     onError: (err) => {
-      toast.error('Failed to block time', { description: err.message });
+      toast.error("Failed to block time", { description: err.message });
     },
   });
 
   const resetForm = () => {
     setDate(undefined);
-    setStartTime('09:00');
-    setEndTime('10:00');
-    setReason('');
+    setStartTime("09:00");
+    setEndTime("10:00");
+    setReason("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) {
-      toast.error('Please select a date');
+      toast.error("Please select a date");
       return;
     }
 
     // Combine date and time
     const startDateTime = new Date(date);
-    const [startH, startM] = startTime.split(':').map(Number);
+    const [startH = 0, startM = 0] = startTime.split(":").map(Number);
     startDateTime.setHours(startH, startM);
 
     const endDateTime = new Date(date);
-    const [endH, endM] = endTime.split(':').map(Number);
+    const [endH = 0, endM = 0] = endTime.split(":").map(Number);
     endDateTime.setHours(endH, endM);
 
     if (endDateTime <= startDateTime) {
-      toast.error('End time must be after start time');
+      toast.error("End time must be after start time");
       return;
     }
 
@@ -102,23 +102,25 @@ export function BlockTimeDialog({
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={'outline'}
+                  variant={"outline"}
                   className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !date && 'text-muted-foreground'
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={setDate}
+                  onSelect={setDate as (date: Date | undefined) => void}
                   initialFocus
-                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  disabled={(date) =>
+                    date < new Date(new Date().setHours(0, 0, 0, 0))
+                  }
                 />
               </PopoverContent>
             </Popover>
@@ -156,7 +158,11 @@ export function BlockTimeDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={blockTimeMutation.isPending}>

@@ -1,7 +1,10 @@
 // Main server entry point - Hono + tRPC + Socket.io
 
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { join } from 'node:path';
 import { createAdaptorServer } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { trpcServer } from '@hono/trpc-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -60,8 +63,50 @@ app.get('/', (c) => {
     endpoints: {
       health: '/health',
       trpc: '/trpc/*',
+      upload: '/upload',
     },
   });
+});
+
+// Static files for uploads
+app.use('/uploads/*', serveStatic({ root: './' }));
+
+// Upload endpoint
+app.post('/upload', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body['file'];
+
+    if (file && file instanceof File) {
+      const buffer = await file.arrayBuffer();
+      // Sanitize filename
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `${Date.now()}-${safeName}`;
+      const uploadDir = './uploads';
+
+      // Ensure directory exists
+      await mkdir(uploadDir, { recursive: true });
+
+      // Write file
+      await writeFile(join(uploadDir, fileName), new Uint8Array(buffer));
+
+      // Construct full URL
+      const protocol = c.req.header('x-forwarded-proto') || 'http';
+      const host = c.req.header('host');
+      const url = `${protocol}://${host}/uploads/${fileName}`;
+
+      return c.json({
+        success: true,
+        url,
+        filename: fileName,
+        originalName: file.name,
+      });
+    }
+    return c.json({ error: 'No valid file uploaded' }, 400);
+  } catch (err) {
+    console.error('Upload error:', err);
+    return c.json({ error: 'Upload failed' }, 500);
+  }
 });
 
 // tRPC endpoint

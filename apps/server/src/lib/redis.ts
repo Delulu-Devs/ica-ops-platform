@@ -1,5 +1,5 @@
 // Redis client for caching, sessions, and pub/sub
-import { createClient, type RedisClientType } from 'redis';
+import { createClient, type RedisClientType } from "redis";
 
 let redisClient: RedisClientType | null = null;
 
@@ -9,31 +9,40 @@ export async function initRedis(): Promise<RedisClientType> {
     return redisClient;
   }
 
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
   redisClient = createClient({
     url: redisUrl,
     socket: {
+      connectTimeout: 10000, // 10 seconds - gives Docker/Redis time to start
       reconnectStrategy: (retries) => {
         if (retries > 10) {
-          console.error('Max Redis reconnection attempts reached');
-          return new Error('Max Redis reconnection attempts reached');
+          console.error("❌ Max Redis reconnection attempts reached");
+          return new Error("Max Redis reconnection attempts reached");
         }
-        return Math.min(retries * 100, 3000);
+        // Wait longer between retries: 500ms, 1s, 1.5s, 2s, etc.
+        const delay = Math.min(retries * 500, 3000);
+        console.log(
+          `📦 Redis reconnecting in ${delay}ms... (attempt ${retries}/10)`,
+        );
+        return delay;
       },
     },
   });
 
-  redisClient.on('error', (err) => {
-    console.error('Redis Client Error:', err);
+  // Track if this is the first connection attempt
+  let isFirstConnection = true;
+
+  redisClient.on("error", (err) => {
+    // Only log detailed errors after first successful connection or after multiple failures
+    if (!isFirstConnection) {
+      console.error("❌ Redis Client Error:", err.message);
+    }
   });
 
-  redisClient.on('connect', () => {
-    console.log('📦 Redis connected');
-  });
-
-  redisClient.on('reconnecting', () => {
-    console.log('📦 Redis reconnecting...');
+  redisClient.on("connect", () => {
+    isFirstConnection = false;
+    console.log("📦 Redis connected");
   });
 
   await redisClient.connect();
@@ -52,7 +61,11 @@ export async function getRedis(): Promise<RedisClientType> {
 // Cache utilities
 export const cache = {
   // Set a value with optional expiration (in seconds)
-  async set(key: string, value: unknown, expirationSeconds?: number): Promise<void> {
+  async set(
+    key: string,
+    value: unknown,
+    expirationSeconds?: number,
+  ): Promise<void> {
     const redis = await getRedis();
     const stringValue = JSON.stringify(value);
 
@@ -124,7 +137,7 @@ export const sessionStore = {
   async create(
     sessionId: string,
     data: Record<string, unknown>,
-    expirationSeconds = 86400 // 24 hours default
+    expirationSeconds = 86400, // 24 hours default
   ): Promise<void> {
     await cache.set(`session:${sessionId}`, data, expirationSeconds);
   },
@@ -135,7 +148,10 @@ export const sessionStore = {
   },
 
   // Update session
-  async update(sessionId: string, data: Record<string, unknown>): Promise<void> {
+  async update(
+    sessionId: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
     const ttl = await cache.ttl(`session:${sessionId}`);
     if (ttl > 0) {
       await cache.set(`session:${sessionId}`, data, ttl);
@@ -152,7 +168,10 @@ export const sessionStore = {
     const redis = await getRedis();
     const currentTtl = await redis.ttl(`session:${sessionId}`);
     if (currentTtl > 0) {
-      await redis.expire(`session:${sessionId}`, currentTtl + additionalSeconds);
+      await redis.expire(
+        `session:${sessionId}`,
+        currentTtl + additionalSeconds,
+      );
     }
   },
 };
@@ -163,7 +182,7 @@ export const rateLimiter = {
   async isLimited(
     key: string,
     limit: number,
-    windowSeconds: number
+    windowSeconds: number,
   ): Promise<{ limited: boolean; remaining: number; resetIn: number }> {
     const redis = await getRedis();
     const rateLimitKey = `ratelimit:${key}`;
@@ -202,7 +221,7 @@ export const pubsub = {
   // Subscribe to a channel (returns unsubscribe function)
   async subscribe(
     channel: string,
-    callback: (message: unknown) => void
+    callback: (message: unknown) => void,
   ): Promise<() => Promise<void>> {
     const redis = await getRedis();
     const subscriber = redis.duplicate();
@@ -229,7 +248,7 @@ export async function closeRedisConnection(): Promise<void> {
   if (redisClient?.isOpen) {
     await redisClient.quit();
     redisClient = null;
-    console.log('📦 Redis connection closed');
+    console.log("📦 Redis connection closed");
   }
 }
 
@@ -238,9 +257,9 @@ export async function checkRedisConnection(): Promise<boolean> {
   try {
     const redis = await getRedis();
     const pong = await redis.ping();
-    return pong === 'PONG';
+    return pong === "PONG";
   } catch (error) {
-    console.error('Redis health check failed:', error);
+    console.error("Redis health check failed:", error);
     return false;
   }
 }
