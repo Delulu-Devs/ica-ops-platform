@@ -88,4 +88,47 @@ export const emailService = {
       `,
     });
   },
+
+  async sendPaymentLink(to: string, studentName: string, amount: number) {
+    return this.sendEmail({
+      to,
+      subject: 'Complete Your Enrollment - ICA Platform',
+      html: `
+        <h1>Enrollment Payment</h1>
+        <p>Hi,</p>
+        <p>We're excited to have <strong>${studentName}</strong> join us!</p>
+        <p>Please complete the payment of <strong>$${amount}</strong> to finalize the enrollment.</p>
+        <p><a href="#">Click here to pay</a></p>
+        <br />
+        <p>ICA Operations Team</p>
+      `,
+    });
+  },
+
+  async sendWelcomeEmail(to: string, studentName: string, password?: string) {
+    const loginInfo = password
+      ? `
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Here are your login credentials:</strong></p>
+        <p>Email: ${to}</p>
+        <p>Password: ${password}</p>
+      </div>
+    `
+      : '';
+
+    return this.sendEmail({
+      to,
+      subject: 'Welcome to ICA Platform!',
+      html: `
+        <h1>Welcome Aboard!</h1>
+        <p>Hi,</p>
+        <p>Registration for <strong>${studentName}</strong> is complete.</p>
+        ${loginInfo}
+        <p>You can now log in to the student dashboard to view schedules and join classes.</p>
+        <br />
+        <p>Happy Learning!</p>
+        <p>ICA Operations Team</p>
+      `,
+    });
+  },
 };

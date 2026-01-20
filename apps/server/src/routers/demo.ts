@@ -1,10 +1,11 @@
 // Demo Router - handles demo booking and management
 
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, coaches, demos } from '../db/schema';
+import { accounts, coaches, demos, students } from '../db/schema';
 import { emailService } from '../lib/email';
+import { generateRandomPassword, hashPassword } from '../lib/password';
 import { demoNotifications } from '../services/notifications';
 import { adminProcedure, coachProcedure, publicProcedure, router } from '../trpc';
 
@@ -68,10 +69,12 @@ const listDemosSchema = z.object({
       'DROPPED',
     ])
     .optional(),
+  search: z.string().optional(),
   startDate: z.iso.datetime().optional(),
   endDate: z.iso.datetime().optional(),
   limit: z.number().min(1).max(100).default(50),
   offset: z.number().min(0).default(0),
+  includeStats: z.boolean().default(false),
 });
 
 export const demoRouter = router({
@@ -175,7 +178,15 @@ export const demoRouter = router({
         .limit(1);
 
       if (!coach) {
-        return { demos: [], total: 0 };
+        return {
+          demos: [],
+          total: 0,
+          stats: {
+            completed: 0,
+            pending: 0,
+            converted: 0,
+          },
+        };
       }
       conditions.push(eq(demos.coachId, coach.id));
     }
@@ -192,6 +203,16 @@ export const demoRouter = router({
 
     if (input.endDate) {
       conditions.push(lte(demos.scheduledStart, new Date(input.endDate)));
+    }
+
+    if (input.search) {
+      conditions.push(
+        or(
+          ilike(demos.studentName, `%${input.search}%`),
+          ilike(demos.parentName, `%${input.search}%`),
+          ilike(demos.parentEmail, `%${input.search}%`)
+        )
+      );
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -222,9 +243,53 @@ export const demoRouter = router({
       .limit(input.limit)
       .offset(input.offset);
 
+    // Get stats (only for initial page load to save resources)
+    let stats = {
+      completed: 0,
+      pending: 0,
+      converted: 0,
+    };
+
+    if (input.includeStats) {
+      // Calculate stats using a single optimized query with aggregation
+      const statsResult = await ctx.db
+        .select({
+          status: demos.status,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(demos)
+        .groupBy(demos.status);
+
+      let totalCompleted = 0;
+      let totalPending = 0;
+      let totalConverted = 0;
+      statsResult.forEach((row) => {
+        const count = row.count;
+
+        if (['ATTENDED', 'CONVERTED', 'INTERESTED', 'PAYMENT_PENDING'].includes(row.status)) {
+          totalCompleted += count;
+        }
+
+        if (['BOOKED', 'RESCHEDULED'].includes(row.status)) {
+          totalPending += count;
+        }
+
+        if (row.status === 'CONVERTED') {
+          totalConverted += count;
+        }
+      });
+
+      stats = {
+        completed: totalCompleted,
+        pending: totalPending,
+        converted: totalConverted,
+      };
+    }
+
     return {
       demos: demoList,
       total: count,
+      stats,
     };
   }),
 
@@ -472,6 +537,147 @@ export const demoRouter = router({
       })
       .where(eq(demos.id, input.id))
       .returning();
+
+    return updated;
+  }),
+
+  // Send payment link (admin only)
+  sendPaymentLink: adminProcedure
+    .input(z.object({ id: z.uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const [demo] = await ctx.db
+        .select({
+          id: demos.id,
+          status: demos.status,
+          studentName: demos.studentName,
+          parentEmail: demos.parentEmail,
+        })
+        .from(demos)
+        .where(eq(demos.id, input.id))
+        .limit(1);
+
+      if (!demo) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Demo not found',
+        });
+      }
+
+      if (demo.status !== 'INTERESTED') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Can only send payment link for demos marked as INTERESTED',
+        });
+      }
+
+      // Send payment link email
+      await emailService.sendPaymentLink(demo.parentEmail, demo.studentName, 100); // Amount hardcoded for simulation
+
+      // Update status
+      const [updated] = await ctx.db
+        .update(demos)
+        .set({
+          status: 'PAYMENT_PENDING',
+          updatedAt: new Date(),
+        })
+        .where(eq(demos.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  // Convert demo to student (admin only)
+  convert: adminProcedure.input(z.object({ id: z.uuid() })).mutation(async ({ ctx, input }) => {
+    const [demo] = await ctx.db.select().from(demos).where(eq(demos.id, input.id)).limit(1);
+
+    if (!demo) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Demo not found',
+      });
+    }
+
+    if (demo.status !== 'PAYMENT_PENDING') {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Demo must be in PAYMENT_PENDING status to simulate payment and convert',
+      });
+    }
+
+    // 1. Check/Create Account
+    let accountId: string;
+    let generatedPassword: string | undefined;
+    // Ensure case-insensitive match for existing account
+    const parentEmailLower = demo.parentEmail.toLowerCase();
+
+    const [existingAccount] = await ctx.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(sql`lower(${accounts.email}) = ${parentEmailLower}`)
+      .limit(1);
+
+    if (existingAccount) {
+      accountId = existingAccount.id;
+    } else {
+      // Generate random password for new account
+      generatedPassword = generateRandomPassword();
+      const passwordHash = await hashPassword(generatedPassword);
+
+      const [newAccount] = await ctx.db
+        .insert(accounts)
+        .values({
+          email: parentEmailLower,
+          passwordHash,
+          role: 'CUSTOMER',
+          authProvider: 'email',
+        })
+        .returning();
+
+      if (!newAccount) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create account',
+        });
+      }
+      accountId = newAccount.id;
+    }
+
+    // 2. Create Student
+    await ctx.db.insert(students).values({
+      accountId,
+      studentName: demo.studentName,
+      parentName: demo.parentName,
+      parentEmail: parentEmailLower,
+      timezone: demo.timezone,
+      studentType: demo.recommendedStudentType || 'GROUP',
+      level: demo.recommendedLevel,
+      assignedCoachId: demo.coachId,
+      status: 'ACTIVE',
+    });
+
+    // 3. Update Demo Status
+    const [updated] = await ctx.db
+      .update(demos)
+      .set({
+        status: 'CONVERTED',
+        updatedAt: new Date(),
+      })
+      .where(eq(demos.id, input.id))
+      .returning();
+
+    // 4. Send Welcome Email (Non-blocking)
+    try {
+      if (!existingAccount && generatedPassword) {
+        // Send email with credentials
+        await emailService.sendWelcomeEmail(demo.parentEmail, demo.studentName, generatedPassword);
+      } else {
+        // Just welcome email (account existed)
+        await emailService.sendWelcomeEmail(demo.parentEmail, demo.studentName);
+      }
+    } catch (error) {
+      console.error('Failed to send welcome email during conversion:', error);
+      // Don't throw, just log. The conversion was successful.
+    }
 
     return updated;
   }),
