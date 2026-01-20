@@ -1,16 +1,10 @@
-import { DashboardShell } from "@/components/dashboard/shell";
-import { ChatWidget } from "@/components/chat-widget";
-import { AuthGuard } from "@/components/auth-guard";
+import { AuthGuard } from '@/components/auth-guard';
+import { DashboardShell } from '@/components/dashboard/shell';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
       <DashboardShell>{children}</DashboardShell>
-      <ChatWidget />
     </AuthGuard>
   );
 }
