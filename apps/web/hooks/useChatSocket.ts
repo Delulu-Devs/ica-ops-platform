@@ -1,39 +1,40 @@
 // React hook for Socket.io chat functionality
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  type ChatMessage,
   connectSocket,
   disconnectSocket,
+  emitTyping,
   getSocket,
   joinRoom,
   leaveRoom,
   onNewMessage,
   onTyping,
-  emitTyping,
-  type ChatMessage,
   type TypingEvent,
-} from "@/lib/socket";
+} from '@/lib/socket';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface UseChatSocketOptions {
   roomId: string | null;
   onMessage?: (message: ChatMessage) => void;
   onTypingChange?: (event: TypingEvent) => void;
+  onPresenceChange?: (event: { userId: string; status: 'online' | 'offline' }) => void;
 }
 
 export function useChatSocket({
   roomId,
   onMessage,
   onTypingChange,
+  onPresenceChange,
 }: UseChatSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const previousRoomRef = useRef<string | null>(null);
 
   // Get access token from auth store
-  const accessToken =
-    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
   // Connect socket on mount
   useEffect(() => {
@@ -44,15 +45,15 @@ export function useChatSocket({
     const handleConnect = () => setIsConnected(true);
     const handleDisconnect = () => setIsConnected(false);
 
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
 
     // Set initial state
     setIsConnected(socket.connected);
 
     return () => {
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
     };
   }, [accessToken]);
 
@@ -123,8 +124,26 @@ export function useChatSocket({
         emitTyping(roomId, isTyping);
       }
     },
-    [roomId],
+    [roomId]
   );
+
+  // Subscribe to presence updates
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handlePresenceUpdate = (data: { userId: string; status: 'online' | 'offline' }) => {
+      if (onPresenceChange) {
+        onPresenceChange(data);
+      }
+    };
+
+    socket.on('presence_update', handlePresenceUpdate);
+
+    return () => {
+      socket.off('presence_update', handlePresenceUpdate);
+    };
+  }, [onPresenceChange]);
 
   return {
     isConnected,
@@ -139,16 +158,12 @@ export function useSocketConnection() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const token = localStorage.getItem("accessToken");
+      const token = localStorage.getItem('accessToken');
       if (token) {
         connectSocket(token);
       }
     } else {
       disconnectSocket();
     }
-
-    return () => {
-      // Don't disconnect on component unmount, only on logout
-    };
   }, [isAuthenticated]);
 }

@@ -145,31 +145,27 @@ export default function AdminDashboard() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm border-l-4 border-l-blue-500 hover:shadow-md transition-all">
+        <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Today's Demos
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-blue-500" />
-            </div>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboard?.todayDemos || 0}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
-              <span className="text-blue-600 font-medium mr-1">Scheduled</span> for today
+              <span className="font-medium mr-1">Scheduled</span> for today
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-orange-500 hover:shadow-md transition-all">
+        <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Pending Actions
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-orange-50 flex items-center justify-center">
-              <Clock className="h-4 w-4 text-orange-500" />
-            </div>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboard?.pendingDemos || 0}</div>
@@ -177,14 +173,12 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-green-500 hover:shadow-md transition-all">
+        <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Conversion Rate
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-green-50 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </div>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{funnel?.conversionRate || 0}%</div>
@@ -192,14 +186,12 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-l-4 border-l-purple-500 hover:shadow-md transition-all">
+        <Card className="shadow-sm hover:shadow-md transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Active Students
             </CardTitle>
-            <div className="h-8 w-8 rounded-full bg-purple-50 flex items-center justify-center">
-              <Users className="h-4 w-4 text-purple-500" />
-            </div>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboard?.activeStudents || 0}</div>
@@ -210,7 +202,7 @@ export default function AdminDashboard() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         {/* Today's Demos Table */}
-        <Card className="col-span-1 md:col-span-4 shadow-sm border-t-4 border-t-primary/20">
+        <Card className="col-span-1 md:col-span-4 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between px-6 py-5">
             <div className="space-y-1">
               <CardTitle className="text-xl">Today's Schedule</CardTitle>
@@ -312,7 +304,7 @@ export default function AdminDashboard() {
 
         {/* Action Items & Quick Stats */}
         <div className="col-span-1 md:col-span-3 space-y-6">
-          <Card className="shadow-sm border-t-4 border-t-orange-500/20">
+          <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5 text-orange-500" />

@@ -320,42 +320,42 @@ export default function DemosPage() {
 
       {/* Stats Overview - Placeholders for now */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm border-l-4 border-l-blue-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Demos</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data?.total ?? '--'}</div>
             <p className="text-xs text-muted-foreground mt-1">All time records</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-green-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data?.stats?.completed ?? '--'}</div>
             <p className="text-xs text-muted-foreground mt-1">Successfully attended</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-orange-500 opacity-80">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-orange-500" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data?.stats?.pending ?? '--'}</div>
             <p className="text-xs text-muted-foreground mt-1">Upcoming sessions</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-purple-500 opacity-80">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Conversion Rate
             </CardTitle>
-            <Plus className="h-4 w-4 text-purple-500" />
+            <Plus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

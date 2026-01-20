@@ -245,44 +245,44 @@ export default function StudentsPage() {
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm border-l-4 border-l-blue-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Students
             </CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStudentsData?.total || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Total registered students</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-green-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Active</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeStudentsData?.total || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Currently enrolled and active</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-yellow-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Paused</CardTitle>
-            <PauseCircle className="h-4 w-4 text-yellow-500" />
+            <PauseCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pausedStudentsData?.total || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Temporarily on hold</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-l-4 border-l-purple-500">
+        <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               1-1 Coaching
             </CardTitle>
-            <BookOpen className="h-4 w-4 text-purple-500" />
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{privateStudentsData?.total || 0}</div>

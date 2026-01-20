@@ -3,7 +3,8 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, chatMessages, chatRoomMembers, coaches, students } from '../db/schema';
+import { accounts, batches, chatMessages, chatRoomMembers, coaches, students } from '../db/schema';
+import { isUserOnline } from '../socket';
 import { coachProcedure, protectedProcedure, router } from '../trpc';
 
 const sendMessageSchema = z.object({
@@ -49,9 +50,7 @@ export const chatRouter = router({
         .innerJoin(accounts, eq(students.accountId, accounts.id));
 
       // Deduplicate parents by accountId
-      const uniqueParents = Array.from(
-        new Map(parentsList.map((p) => [p.accountId, p])).values()
-      );
+      const uniqueParents = Array.from(new Map(parentsList.map((p) => [p.accountId, p])).values());
 
       return [...coachesList, ...uniqueParents];
     } else {
@@ -78,7 +77,7 @@ export const chatRouter = router({
     const roomIds = memberships.map((m) => m.roomId);
     if (roomIds.length === 0) return [];
 
-    // Get last message and member count for each room
+    // Get last message, member count, unread count, and room metadata
     const rooms = await Promise.all(
       roomIds.map(async (roomId: string) => {
         const lastMessageResult = await ctx.db
@@ -89,19 +88,89 @@ export const chatRouter = router({
           .limit(1);
         const lastMessage = lastMessageResult[0] ?? null;
 
-        const memberCountResult = await ctx.db
-          .select({ memberCount: sql<number>`count(*)::int` })
-          .from(chatRoomMembers)
-          .where(eq(chatRoomMembers.roomId, roomId));
-        const memberCount = memberCountResult[0]?.memberCount ?? 0;
-
         const unreadCountResult = await ctx.db
           .select({ unreadCount: sql<number>`count(*)::int` })
           .from(chatMessages)
           .where(and(eq(chatMessages.roomId, roomId), eq(chatMessages.isRead, false)));
         const unreadCount = unreadCountResult[0]?.unreadCount ?? 0;
 
-        return { roomId, lastMessage, memberCount, unreadCount };
+        let name = 'Chat';
+        let type = 'batch';
+        let otherParticipantRole = null;
+        let otherParticipantId: string | null = null;
+        let isOnline = false;
+
+        if (roomId.startsWith('dm:')) {
+          type = 'dm';
+          const parts = roomId.split(':');
+          const otherId = parts.find((id) => id !== 'dm' && id !== ctx.user.id);
+
+          if (otherId) {
+            otherParticipantId = otherId;
+            isOnline = await isUserOnline(otherId);
+
+            // Try fetching as Coach
+            const [coach] = await ctx.db
+              .select({ name: coaches.name })
+              .from(coaches)
+              .where(eq(coaches.accountId, otherId));
+
+            if (coach) {
+              name = coach.name;
+              otherParticipantRole = 'COACH';
+            } else {
+              // Try fetching as Parent (Student)
+              const [student] = await ctx.db
+                .select({ name: students.parentName })
+                .from(students)
+                .where(eq(students.accountId, otherId))
+                .limit(1);
+
+              if (student) {
+                name = student.name;
+                otherParticipantRole = 'PARENT';
+              } else {
+                // Fallback to Admin or generic
+                const [account] = await ctx.db
+                  .select({ role: accounts.role, email: accounts.email })
+                  .from(accounts)
+                  .where(eq(accounts.id, otherId));
+
+                if (account?.role === 'ADMIN') {
+                  name = 'Admin';
+                  otherParticipantRole = 'ADMIN';
+                } else {
+                  name = account?.email || 'Unknown User';
+                }
+              }
+            }
+          }
+        } else if (roomId.startsWith('batch:')) {
+          type = 'batch';
+          const batchId = roomId.split(':')[1];
+          if (batchId) {
+            const [batch] = await ctx.db
+              .select({ name: batches.name })
+              .from(batches)
+              .where(eq(batches.id, batchId));
+
+            if (batch) {
+              name = batch.name;
+              otherParticipantRole = 'BATCH';
+            }
+          }
+        }
+
+        return {
+          roomId,
+          lastMessage,
+          unreadCount,
+          name,
+          type,
+          otherParticipantRole,
+          otherParticipantId,
+          isOnline,
+        };
       })
     );
 
