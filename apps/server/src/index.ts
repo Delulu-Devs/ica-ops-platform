@@ -11,6 +11,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { checkDatabaseConnection, closeDatabaseConnection } from './db';
 import { checkRedisConnection, closeRedisConnection, initRedis } from './lib/redis';
+import { rateLimiter } from './middleware/rate-limit';
 import { appRouter } from './routers/_app';
 import { initSocketServer } from './socket';
 import { createContext } from './trpc';
@@ -33,6 +34,9 @@ app.use(
 
 // Request logging
 app.use('*', logger());
+
+// Rate limiting
+app.use('*', rateLimiter);
 
 // Health check endpoint
 app.get('/health', async (c) => {

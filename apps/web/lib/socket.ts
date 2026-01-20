@@ -1,8 +1,8 @@
 // Socket.io client for real-time communication
-import { io, Socket } from "socket.io-client";
+import { io, Socket } from 'socket.io-client';
 
 // Socket.io server URL
-const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
+const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
 
 // Singleton socket instance
 let socket: Socket | null = null;
@@ -12,20 +12,20 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(SOCKET_URL, {
       autoConnect: false,
-      transports: ["websocket", "polling"],
+      withCredentials: true,
     });
 
     // Connection event handlers
-    socket.on("connect", () => {
-      console.log("🔌 Socket.io connected:", socket?.id);
+    socket.on('connect', () => {
+      console.log('🔌 Socket.io connected:', socket?.id);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("🔌 Socket.io disconnected:", reason);
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 Socket.io disconnected:', reason);
     });
 
-    socket.on("connect_error", (error) => {
-      console.error("🔌 Socket.io connection error:", error.message);
+    socket.on('connect_error', (error) => {
+      console.error('🔌 Socket.io connection error:', error.message);
     });
   }
 
@@ -58,8 +58,8 @@ export function disconnectSocket(): void {
 export function joinRoom(roomId: string): void {
   const sock = getSocket();
   if (sock.connected) {
-    sock.emit("join_room", roomId);
-    console.log("📝 Joined room:", roomId);
+    sock.emit('join_room', roomId);
+    console.log('📝 Joined room:', roomId);
   }
 }
 
@@ -67,8 +67,8 @@ export function joinRoom(roomId: string): void {
 export function leaveRoom(roomId: string): void {
   const sock = getSocket();
   if (sock.connected) {
-    sock.emit("leave_room", roomId);
-    console.log("📝 Left room:", roomId);
+    sock.emit('leave_room', roomId);
+    console.log('📝 Left room:', roomId);
   }
 }
 
@@ -76,7 +76,7 @@ export function leaveRoom(roomId: string): void {
 export function sendSocketMessage(roomId: string, content: string): void {
   const sock = getSocket();
   if (sock.connected) {
-    sock.emit("send_message", { roomId, content });
+    sock.emit('send_message', { roomId, content });
   }
 }
 
@@ -103,21 +103,21 @@ export type TypingHandler = (event: TypingEvent) => void;
 // Subscribe to new messages
 export function onNewMessage(handler: MessageHandler): () => void {
   const sock = getSocket();
-  sock.on("new_message", handler);
-  return () => sock.off("new_message", handler);
+  sock.on('new_message', handler);
+  return () => sock.off('new_message', handler);
 }
 
 // Subscribe to typing events
 export function onTyping(handler: TypingHandler): () => void {
   const sock = getSocket();
-  sock.on("typing", handler);
-  return () => sock.off("typing", handler);
+  sock.on('typing', handler);
+  return () => sock.off('typing', handler);
 }
 
 // Emit typing event
 export function emitTyping(roomId: string, isTyping: boolean): void {
   const sock = getSocket();
   if (sock.connected) {
-    sock.emit("typing", { roomId, isTyping });
+    sock.emit('typing', { roomId, isTyping });
   }
 }

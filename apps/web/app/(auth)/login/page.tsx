@@ -1,11 +1,13 @@
-﻿"use client";
+﻿'use client';
 
-import { Eye, EyeOff, Loader2, Trophy } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useQueryClient } from '@tanstack/react-query';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -13,24 +15,23 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { trpc } from "@/lib/trpc";
-import { useAuthStore } from "@/store/useAuthStore";
-import { useQueryClient } from "@tanstack/react-query";
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { trpc } from '@/lib/trpc';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const login = useAuthStore((state) => state.login);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const mutation = trpc.auth.login.useMutation({
     onSuccess: async (data: {
-      user: { id: string; email: string; role: "ADMIN" | "COACH" | "CUSTOMER" };
+      user: { id: string; email: string; role: 'ADMIN' | 'COACH' | 'CUSTOMER' };
       accessToken: string;
     }) => {
       // Store token first
@@ -39,32 +40,32 @@ export default function LoginPage() {
       // Clear all cached queries so they'll refetch with new token
       await queryClient.invalidateQueries();
 
-      toast.success("Welcome back!");
+      toast.success('Welcome back!');
 
       // Navigate based on role
       switch (data.user.role) {
-        case "ADMIN":
-          router.push("/admin");
+        case 'ADMIN':
+          router.push('/admin');
           break;
-        case "COACH":
-          router.push("/coach");
+        case 'COACH':
+          router.push('/coach');
           break;
-        case "CUSTOMER":
-          router.push("/dashboard");
+        case 'CUSTOMER':
+          router.push('/dashboard');
           break;
         default:
-          router.push("/");
+          router.push('/');
       }
     },
     onError: (err: { message: string }) => {
-      toast.error("Login Failed", { description: err.message });
+      toast.error('Login Failed', { description: err.message });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error("Please fill in all fields");
+      toast.error('Please fill in all fields');
       return;
     }
     mutation.mutate({ email, password });
@@ -75,12 +76,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg border-0 bg-background">
         <form onSubmit={handleSubmit}>
           <CardHeader className="space-y-4 text-center">
-            <div className="mx-auto h-12 w-12 bg-primary rounded-xl flex items-center justify-center">
-              <Trophy className="h-7 w-7 text-primary-foreground" />
+            <div className="mx-auto flex justify-center">
+              <Image src="/logo.png" alt="ICA" width={80} height={80} priority />
             </div>
-            <CardTitle className="text-2xl font-bold text-primary">
-              Welcome back
-            </CardTitle>
+            <CardTitle className="text-2xl font-bold text-primary">Welcome back</CardTitle>
             <CardDescription>
               Enter your credentials to access the ICA Operations Platform
             </CardDescription>
@@ -100,17 +99,14 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
+                <Link href="#" className="text-sm font-medium text-primary hover:underline">
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -120,13 +116,9 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
@@ -135,22 +127,15 @@ export default function LoginPage() {
               size="lg"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Sign In"
-              )}
+              {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Sign In'}
             </Button>
           </CardContent>
           <CardFooter className="flex flex-col gap-4 text-center">
             <div className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link
-                href="/demo"
-                className="font-medium text-primary hover:underline"
-              >
+              Don't have an account?{' '}
+              <Link href="/demo" className="font-medium text-primary hover:underline">
                 Book a demo
-              </Link>{" "}
+              </Link>{' '}
               (Students)
             </div>
           </CardFooter>

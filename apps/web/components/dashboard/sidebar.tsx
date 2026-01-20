@@ -7,9 +7,9 @@ import {
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
-  Trophy,
   Users,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -91,7 +91,7 @@ export function SidebarContent({ className, onNavigate }: SidebarProps) {
   return (
     <div className={cn('flex flex-col h-full', className)}>
       <div className="flex h-16 items-center border-b px-6">
-        <Trophy className="h-6 w-6 text-primary mr-2" />
+        <Image src="/logo.png" alt="ICA" width={32} height={32} className="mr-2" />
         <span className="font-bold text-lg text-primary">ICA Platform</span>
       </div>
       <div className="flex-1 overflow-auto py-4">

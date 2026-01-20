@@ -69,7 +69,9 @@ let io: TypedServer | null = null;
 // Initialize Socket.io server
 // biome-ignore lint/suspicious/noExplicitAny: Server types vary between http and http2
 export function initSocketServer(httpServer: any): TypedServer {
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+  const allowedOrigins = (
+    process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
+  ).split(',');
 
   io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
     httpServer,

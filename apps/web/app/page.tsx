@@ -1,4 +1,5 @@
 ﻿import { ArrowRight, BookOpen, CheckCircle2, Trophy, Users } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +11,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-              <Trophy className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <Image src="/logo.png" alt="ICA" width={32} height={32} />
             <span className="text-xl font-bold text-primary tracking-tight">ICA Ops</span>
           </div>
           <nav className="flex items-center gap-4">
@@ -181,7 +180,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <Trophy className="h-6 w-6 text-primary" />
+              <Image src="/logo.png" alt="ICA" width={32} height={32} />
               <span className="text-xl font-bold text-primary">ICA Ops</span>
             </div>
             <p className="text-muted-foreground max-w-md">
