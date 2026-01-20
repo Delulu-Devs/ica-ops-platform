@@ -3,7 +3,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { batches, coaches, demos, students } from '../db/schema';
+import { accounts, batches, coaches, demos, students } from '../db/schema';
 import { adminProcedure, coachProcedure, protectedProcedure, router } from '../trpc';
 
 const updateProfileSchema = z.object({
@@ -178,4 +178,47 @@ export const coachRouter = router({
         .returning();
       return updated;
     }),
+
+  adminUpdate: adminProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().optional(),
+        bio: z.string().optional(),
+        rating: z.number().optional(),
+        specializations: z.array(z.string()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      const [updated] = await ctx.db
+        .update(coaches)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(coaches.id, id))
+        .returning();
+
+      if (!updated) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Coach not found' });
+      }
+      return updated;
+    }),
+
+  delete: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    // First find the coach to get the accountId
+    const [coach] = await ctx.db
+      .select({ accountId: coaches.accountId })
+      .from(coaches)
+      .where(eq(coaches.id, input.id))
+      .limit(1);
+
+    if (!coach) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Coach not found' });
+    }
+
+    // Delete the account (will cascade delete coach profile due to foreign key constraints)
+    // If we only delete the coach profile, the login account remains
+    await ctx.db.delete(accounts).where(eq(accounts.id, coach.accountId));
+
+    return { success: true };
+  }),
 });

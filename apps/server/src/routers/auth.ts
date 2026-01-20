@@ -33,6 +33,9 @@ const createAccountSchema = z.object({
   password: z.string().min(8, { error: 'Password must be at least 8 characters' }),
   role: z.enum(['ADMIN', 'COACH', 'CUSTOMER']),
   name: z.string().min(2, { error: 'Name is required' }), // For coach profile
+  bio: z.string().optional(),
+  rating: z.number().optional(),
+  specializations: z.array(z.string()).optional(),
 });
 
 const updatePasswordSchema = z.object({
@@ -384,6 +387,9 @@ export const authRouter = router({
       await ctx.db.insert(coaches).values({
         accountId: account.id,
         name: input.name,
+        bio: input.bio,
+        rating: input.rating,
+        specializations: input.specializations,
       });
     }
 

@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { disconnectSocket } from '@/lib/socket';
 import { trpc } from '@/lib/trpc';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -52,6 +52,7 @@ export function Header() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 border-r-0 max-w-xs">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SidebarContent onNavigate={() => setSheetOpen(false)} />
         </SheetContent>
       </Sheet>
