@@ -46,6 +46,11 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: 3001
       NODE_ENV: production
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      JWT_SECRET: ${JWT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
       # Add other env vars here
     depends_on:
       postgres:
