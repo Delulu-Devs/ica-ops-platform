@@ -169,7 +169,7 @@ export default function AdminBatchesPage() {
                         <span className="font-medium text-sm">
                           <span
                             className={
-                              (batch.studentCount || 0) > batch.maxStudents
+                              (batch.studentCount || 0) > (batch.maxStudents || 0)
                                 ? 'text-destructive'
                                 : 'text-primary'
                             }

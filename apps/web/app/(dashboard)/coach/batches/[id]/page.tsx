@@ -1,64 +1,47 @@
-"use client";
+'use client';
 
-import { format } from "date-fns";
-import {
-  Calendar,
-  FileText,
-  Loader2,
-  MoreVertical,
-  Plus,
-  Users,
-  Video,
-} from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useMemo, useRef } from "react";
-import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { format } from 'date-fns';
+import { Calendar, FileText, Loader2, MoreVertical, Plus, Users, Video } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useMemo, useRef } from 'react';
+import { toast } from 'sonner';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { trpc } from "@/lib/trpc";
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { trpc } from '@/lib/trpc';
 
 export default function BatchDetailsPage() {
   const params = useParams();
   const batchId = params.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: batch, isLoading: isBatchLoading } =
-    trpc.batch.getById.useQuery({ id: batchId });
-  const { data: students, isLoading: isStudentsLoading } =
-    trpc.batch.getStudents.useQuery({
-      batchId,
-    });
+  const { data: batch, isLoading: isBatchLoading } = trpc.batch.getById.useQuery({ id: batchId });
+  const { data: students, isLoading: isStudentsLoading } = trpc.batch.getStudents.useQuery({
+    batchId,
+  });
 
   // We reuse the chat messages to show "Materials" (files shared in chat)
-  const { data: messages, refetch: refetchMessages } =
-    trpc.chat.getMessages.useQuery(
-      { roomId: `batch:${batchId}` },
-      { enabled: !!batchId },
-    );
+  const { data: messages, refetch: refetchMessages } = trpc.chat.getMessages.useQuery(
+    { roomId: `batch:${batchId}` },
+    { enabled: !!batchId }
+  );
 
   const materials = useMemo(() => {
-    return messages?.filter((m) => m.messageType === "file") || [];
+    return messages?.filter((m) => m.messageType === 'file') || [];
   }, [messages]);
 
   const uploadFileMutation = trpc.chat.uploadFile.useMutation({
     onSuccess: () => {
-      toast.success("Material shared successfully");
+      toast.success('Material shared successfully');
       refetchMessages();
     },
     onError: (error) => toast.error(error.message),
@@ -68,7 +51,7 @@ export default function BatchDetailsPage() {
     const file = e.target.files?.[0];
     if (file) {
       let fakeUrl = `https://scholar-chess-assets.s3.amazonaws.com/uploads/${file.name}`;
-      if (file.type.startsWith("image/")) {
+      if (file.type.startsWith('image/')) {
         fakeUrl = `https://placehold.co/600x400?text=${encodeURIComponent(file.name)}`;
       }
 
@@ -78,7 +61,7 @@ export default function BatchDetailsPage() {
         fileUrl: fakeUrl,
       });
 
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -120,7 +103,7 @@ export default function BatchDetailsPage() {
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {batch.schedule || "Flexible Schedule"}
+              {batch.schedule || 'Flexible Schedule'}
             </div>
           </div>
         </div>
@@ -146,22 +129,20 @@ export default function BatchDetailsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Enrolled Students</CardTitle>
-              <CardDescription>
-                Manage and track students in this batch.
-              </CardDescription>
+              <CardDescription>Manage and track students in this batch.</CardDescription>
             </CardHeader>
             <CardContent>
               {isStudentsLoading ? (
                 <div className="flex justify-center p-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-              ) : students?.length === 0 ? (
+              ) : students?.students?.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No students enrolled yet.
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {students?.map((student) => (
+                  {students?.students?.map((student) => (
                     <div
                       key={student.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -175,11 +156,9 @@ export default function BatchDetailsPage() {
                         <div>
                           <p className="font-semibold">{student.studentName}</p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>Rating: {student.rating || "N/A"}</span>
+                            <span>Rating: {student.rating || 'N/A'}</span>
                             <span>•</span>
-                            <span className="capitalize">
-                              {student.status.toLowerCase()}
-                            </span>
+                            <span className="capitalize">{student.status.toLowerCase()}</span>
                           </div>
                         </div>
                       </div>
@@ -208,9 +187,7 @@ export default function BatchDetailsPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Class Materials</CardTitle>
-                <CardDescription>
-                  Files and resources shared with this batch.
-                </CardDescription>
+                <CardDescription>Files and resources shared with this batch.</CardDescription>
               </div>
               <div>
                 <input
@@ -238,16 +215,14 @@ export default function BatchDetailsPage() {
                 <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-lg border-dashed border-2">
                   <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
                   <p>No materials uploaded yet.</p>
-                  <p className="text-sm">
-                    Upload PDFs, PGNs, or images for your students.
-                  </p>
+                  <p className="text-sm">Upload PDFs, PGNs, or images for your students.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {materials.map((file) => (
                     <a
                       key={file.id}
-                      href={file.fileUrl || "#"}
+                      href={file.fileUrl || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-start gap-3 p-4 border rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-all group"
@@ -256,15 +231,19 @@ export default function BatchDetailsPage() {
                         <FileText className="h-5 w-5 text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p
-                          className="font-medium truncate pr-2"
-                          title={file.content}
-                        >
+                        <p className="font-medium truncate pr-2" title={file.content}>
                           {file.content}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Shared{" "}
-                          {format(new Date(file.createdAt), "MMM d, yyyy"
+                          Shared {format(new Date(file.createdAt), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
