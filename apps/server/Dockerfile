@@ -8,7 +8,7 @@ WORKDIR /app
 # Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* bun.lock* ./
 RUN npm install -g bun
-RUN bun install --frozen-lockfile
+RUN bun install --no-save
 
 # Rebuild the source code only when needed
 FROM base AS builder
