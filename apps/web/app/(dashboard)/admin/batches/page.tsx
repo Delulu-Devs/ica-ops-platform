@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit, Loader2, MessageSquare, Plus, Trash2, Users } from 'lucide-react';
+import { Edit, Loader2, MessageSquare, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/table';
 import { trpc } from '@/lib/trpc';
 import { type Batch, BatchDialog } from './batch-dialog';
+import { BatchStudentsDialog } from './batch-students-dialog';
 
 type BatchWithDetails = Batch & {
   coachName: string | null;
@@ -37,6 +38,9 @@ export default function AdminBatchesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   // Removed unused date state
   const [selectedBatch, setSelectedBatch] = useState<BatchWithDetails | null>(null);
+  const [selectedBatchForStudents, setSelectedBatchForStudents] = useState<BatchWithDetails | null>(
+    null
+  );
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = trpc.batch.list.useQuery({
@@ -161,7 +165,22 @@ export default function AdminBatchesPage() {
                       })()}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="font-medium">{batch.maxStudents}</span> Students
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="font-medium text-sm">
+                          <span
+                            className={
+                              (batch.studentCount || 0) > batch.maxStudents
+                                ? 'text-destructive'
+                                : 'text-primary'
+                            }
+                          >
+                            {batch.studentCount || 0}
+                          </span>
+                          <span className="text-muted-foreground mx-1">/</span>
+                          <span>{batch.maxStudents || 0}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">Enrolled</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -185,6 +204,16 @@ export default function AdminBatchesPage() {
                         >
                           <Edit className="h-4 w-4" />
                           <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedBatchForStudents(batch)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          title="Manage Students"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span className="sr-only">Manage Students</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -216,6 +245,16 @@ export default function AdminBatchesPage() {
           refetch();
         }}
       />
+
+      {selectedBatchForStudents && (
+        <BatchStudentsDialog
+          open={!!selectedBatchForStudents}
+          onOpenChange={(open) => !open && setSelectedBatchForStudents(null)}
+          batchId={selectedBatchForStudents.id}
+          batchName={selectedBatchForStudents.name}
+          onSuccess={() => refetch()}
+        />
+      )}
 
       <AlertDialog
         open={!!deleteId}

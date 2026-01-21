@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +38,8 @@ type Subscription = {
 
 export default function AdminFinancePage() {
   const [page] = useState(0);
+  const utils = trpc.useUtils();
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading } = trpc.subscription.list.useQuery({
     limit: 50,
@@ -44,6 +47,53 @@ export default function AdminFinancePage() {
   });
 
   const { data: stats, isLoading: isStatsLoading } = trpc.subscription.getStats.useQuery();
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const { subscriptions } = await utils.subscription.list.fetch({
+        limit: 1000,
+        offset: 0,
+      });
+
+      if (!subscriptions || subscriptions.length === 0) {
+        toast.error('No data to export');
+        return;
+      }
+
+      // Convert to CSV
+      const headers = ['ID', 'Email', 'Plan', 'Amount', 'Billing Cycle', 'Status', 'Next Due'];
+      const rows = subscriptions.map((sub) => [
+        sub.id,
+        sub.accountEmail || '',
+        sub.planName || '',
+        sub.amount,
+        sub.billingCycle,
+        sub.status,
+        format(new Date(sub.nextDueAt), 'yyyy-MM-dd'),
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+      ].join('\n');
+
+      // Download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `subscriptions_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast.error('Failed to export CSV');
+      console.error(error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -56,8 +106,12 @@ export default function AdminFinancePage() {
             Monitor revenue, subscription status, and billing cycles.
           </p>
         </div>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
+        <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+          {isExporting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
           Export CSV
         </Button>
       </div>

@@ -70,6 +70,11 @@ export const batchRouter = router({
         createdAt: batches.createdAt,
         updatedAt: batches.updatedAt,
         coachName: coaches.name,
+        studentCount: sql<number>`(
+          SELECT count(*)::int 
+          FROM ${students} 
+          WHERE ${students.assignedBatchId} = ${batches.id}
+        )`,
       })
       .from(batches)
       .leftJoin(coaches, eq(batches.coachId, coaches.id))
@@ -156,7 +161,7 @@ export const batchRouter = router({
         .where(eq(students.assignedBatchId, input.batchId))
         .orderBy(students.studentName);
 
-      return batchStudents;
+      return { students: batchStudents, total: batchStudents.length };
     }),
 
   // ... create, update ...

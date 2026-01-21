@@ -4,14 +4,17 @@ import { addDays, endOfWeek, format, startOfWeek } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, Pencil, Users, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc';
+import { BlockTimeDialog } from '../block-time-dialog';
 import { EditMeetingLinkDialog } from './edit-meeting-link-dialog';
 
 export default function CoachSchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isBlockTimeOpen, setIsBlockTimeOpen] = useState(false);
   const [editingDemo, setEditingDemo] = useState<{
     id: string;
     link: string | null;
@@ -36,16 +39,22 @@ export default function CoachSchedulePage() {
             {format(endDate, 'MMM d, yyyy')}.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
-            Previous Week
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => setIsBlockTimeOpen(true)}>
+            <Clock className="mr-2 h-4 w-4" />
+            Block Time
           </Button>
-          <Button variant="outline" onClick={() => setCurrentDate(new Date())}>
-            Today
-          </Button>
-          <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
-            Next Week
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+              Previous
+            </Button>
+            <Button variant="outline" onClick={() => setCurrentDate(new Date())}>
+              Today
+            </Button>
+            <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+              Next
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -213,6 +222,14 @@ export default function CoachSchedulePage() {
         currentLink={editingDemo?.link || null}
         onSuccess={() => {
           window.location.reload();
+        }}
+      />
+      <BlockTimeDialog
+        open={isBlockTimeOpen}
+        onOpenChange={setIsBlockTimeOpen}
+        onSuccess={() => {
+          // Ideally refetch schedule or availability here
+          toast.success('Time blocked on your calendar');
         }}
       />
     </div>

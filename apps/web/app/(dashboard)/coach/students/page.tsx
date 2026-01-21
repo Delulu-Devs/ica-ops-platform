@@ -19,9 +19,12 @@ import { trpc } from '@/lib/trpc';
 
 export default function CoachStudentsPage() {
   const [page] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const { data, isLoading } = trpc.student.list.useQuery({
     limit: 10,
     offset: page * 10,
+    search: searchQuery,
   });
 
   return (
@@ -40,7 +43,12 @@ export default function CoachStudentsPage() {
             </div>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search students..." className="pl-8" disabled />
+              <Input
+                placeholder="Search students..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
         </CardHeader>

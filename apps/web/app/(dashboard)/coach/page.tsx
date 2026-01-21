@@ -17,9 +17,11 @@ import {
 } from '@/components/ui/table';
 import { trpc } from '@/lib/trpc';
 import { BlockTimeDialog } from './block-time-dialog';
+import { ProfileDialog } from './profile-dialog';
 
 export default function CoachDashboard() {
   const [blockTimeOpen, setBlockTimeOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const { data: profile, isLoading: isProfileLoading } = trpc.coach.getProfile.useQuery();
 
   // Get schedule for Today
@@ -54,6 +56,9 @@ export default function CoachDashboard() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => setProfileOpen(true)}>
+            Edit Profile
+          </Button>
           <Button onClick={() => setBlockTimeOpen(true)}>Block Time</Button>
         </div>
       </div>
@@ -182,6 +187,16 @@ export default function CoachDashboard() {
         open={blockTimeOpen}
         onOpenChange={setBlockTimeOpen}
         onSuccess={refetchSchedule}
+      />
+
+      <ProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        onSuccess={() => {
+          // Refetch profile if needed, but react-query usually handles it
+          // In this case we might want to invalidate the query or just rely on state update
+          // The dashboard fetches profile on mount/focus
+        }}
       />
     </div>
   );
