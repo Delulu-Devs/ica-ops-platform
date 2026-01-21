@@ -31,6 +31,12 @@ COPY . .
 
 # Install bun to run the build if using bun
 RUN npm install -g bun
+
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 RUN bun run build
 
 # Production image, copy all the files and run next
