@@ -1,7 +1,7 @@
 'use client';
 
 import { addDays, endOfWeek, format, startOfWeek } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, MessageSquare, Pencil, Users, Video } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Pencil, Users, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -158,15 +158,11 @@ export default function CoachSchedulePage() {
                 <Card key={batch.id} className="shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                     <div>
-                      <CardTitle className="text-lg">{batch.name}</CardTitle>
+                      <CardTitle className="text-lg hover:underline decoration-primary/50 underline-offset-4 transition-all">
+                        <Link href={`/coach/batches/${batch.id}`}>{batch.name}</Link>
+                      </CardTitle>
                       <CardDescription>{batch.level} Level</CardDescription>
                     </div>
-                    <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                      <Link href={`/chat?roomId=batch:${batch.id}`} title="Message Batch">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
-                        <span className="sr-only">Message Batch</span>
-                      </Link>
-                    </Button>
                   </CardHeader>
                   <CardContent className="pb-4">
                     <div className="text-sm text-muted-foreground mb-2">

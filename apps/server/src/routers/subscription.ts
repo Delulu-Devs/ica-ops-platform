@@ -1,7 +1,7 @@
 // Subscription Router - handles plans and subscriptions
 
 import { TRPCError } from '@trpc/server';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { accounts, plans, subscriptions } from '../db/schema';
 import { adminProcedure, protectedProcedure, publicProcedure, router } from '../trpc';
@@ -22,6 +22,76 @@ export const subscriptionRouter = router({
   getPlans: publicProcedure.query(async ({ ctx }) => {
     return await ctx.db.select().from(plans).where(eq(plans.isActive, true)).orderBy(plans.amount);
   }),
+
+  // Get finance stats (admin only)
+  getStats: adminProcedure.query(async ({ ctx }) => {
+    // Total Revenue (monthly approximation from active subscriptions)
+    const revenueResult = await ctx.db
+      .select({
+        total: sql<number>`sum(${subscriptions.amount})::int`,
+      })
+      .from(subscriptions)
+      .where(eq(subscriptions.status, 'ACTIVE'));
+
+    // Active Subscriptions
+    const activeResult = await ctx.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(eq(subscriptions.status, 'ACTIVE'));
+
+    // Past Due
+    const pastDueResult = await ctx.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(eq(subscriptions.status, 'PAST_DUE'));
+
+    // Active Plans
+    const plansResult = await ctx.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(plans)
+      .where(eq(plans.isActive, true));
+
+    return {
+      monthlyRevenue: revenueResult[0]?.total || 0,
+      activeSubscriptions: activeResult[0]?.count || 0,
+      pastDue: pastDueResult[0]?.count || 0,
+      activePlans: plansResult[0]?.count || 0,
+    };
+  }),
+
+  // List all subscriptions (admin only)
+  list: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const countResult = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(subscriptions);
+      const count = countResult[0]?.count ?? 0;
+
+      const subList = await ctx.db
+        .select({
+          id: subscriptions.id,
+          amount: subscriptions.amount,
+          status: subscriptions.status,
+          billingCycle: subscriptions.billingCycle,
+          nextDueAt: subscriptions.nextDueAt,
+          accountEmail: accounts.email,
+          planName: plans.name,
+        })
+        .from(subscriptions)
+        .leftJoin(accounts, eq(subscriptions.accountId, accounts.id))
+        .leftJoin(plans, eq(subscriptions.planId, plans.id))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return { subscriptions: subList, total: count };
+    }),
 
   // Create subscription (admin only)
   create: adminProcedure.input(createSubscriptionSchema).mutation(async ({ ctx, input }) => {

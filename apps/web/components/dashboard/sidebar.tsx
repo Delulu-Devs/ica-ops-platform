@@ -2,13 +2,16 @@
 
 import {
   BarChart3,
+  Briefcase,
   Calendar,
   CreditCard,
+  DollarSign,
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
   Users,
 } from 'lucide-react';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -52,6 +55,18 @@ export function SidebarContent({ className, onNavigate }: SidebarProps) {
       href: '/admin/analytics',
       label: 'Analytics',
       icon: BarChart3,
+      roles: ['ADMIN'],
+    },
+    {
+      href: '/admin/batches',
+      label: 'Batches',
+      icon: Briefcase,
+      roles: ['ADMIN'],
+    },
+    {
+      href: '/admin/finance',
+      label: 'Finance',
+      icon: DollarSign,
       roles: ['ADMIN'],
     },
     {
