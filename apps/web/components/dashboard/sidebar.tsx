@@ -4,6 +4,7 @@ import {
   BarChart3,
   Briefcase,
   Calendar,
+  ClipboardList,
   CreditCard,
   DollarSign,
   FileText,
@@ -38,6 +39,12 @@ export function SidebarContent({ className, onNavigate }: SidebarProps) {
       href: '/admin/students',
       label: 'Students',
       icon: Users,
+      roles: ['ADMIN'],
+    },
+    {
+      href: '/admin/reviews',
+      label: 'Reviews',
+      icon: ClipboardList,
       roles: ['ADMIN'],
     },
     {

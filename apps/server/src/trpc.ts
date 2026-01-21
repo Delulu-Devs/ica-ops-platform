@@ -24,6 +24,11 @@ export interface Context {
 export async function createContext(honoContext: HonoContext): Promise<Context> {
   // Extract and verify JWT token
   const authHeader = honoContext.req.header('Authorization');
+  console.log(
+    '🔵 Context: Auth Header:',
+    authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING'
+  );
+
   const token = extractBearerToken(authHeader);
 
   let user: Context['user'] = null;
@@ -36,6 +41,8 @@ export async function createContext(honoContext: HonoContext): Promise<Context> 
         email: payload.email,
         role: payload.role,
       };
+    } else {
+      console.error('🔴 Server: Token verification FAILED for:', `${token.substring(0, 15)}...`);
     }
   }
 
@@ -71,6 +78,7 @@ export const middleware = t.middleware;
 // Auth middleware - requires authenticated user
 const isAuthenticated = middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
+    console.error('🔴 Server: isAuthenticated failed - No User in Context (Token invalid/missing)');
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'You must be logged in to access this resource',
@@ -85,6 +93,7 @@ const isAuthenticated = middleware(async ({ ctx, next }) => {
     .limit(1);
 
   if (!account) {
+    console.error(`🔴 Server: isAuthenticated failed - Account ${ctx.user.id} not found in DB`);
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Account no longer exists',

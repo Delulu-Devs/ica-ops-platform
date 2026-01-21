@@ -2,6 +2,7 @@
 
 import { format } from 'date-fns';
 import { CreditCard, Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,18 +102,28 @@ export default function PaymentsPage() {
         </CardContent>
       </Card>
 
-       <Card>
-          <CardHeader>
-            <CardTitle>Payment Methods</CardTitle>
-            <CardDescription>Manage your saved cards and billing details.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground">
-                Payment method management is handled securely via our payment provider.
-                <Button variant="link" className="p-0 h-auto ml-1">Manage Settings</Button>
-            </div>
-          </CardContent>
-       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Methods</CardTitle>
+          <CardDescription>Manage your saved cards and billing details.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            Payment method management is handled securely via our payment provider.
+            <Button
+              variant="link"
+              className="p-0 h-auto ml-1"
+              onClick={() =>
+                toast.info('Payment settings managed by provider', {
+                  description: 'Please contact support to update payment methods.',
+                })
+              }
+            >
+              Manage Settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

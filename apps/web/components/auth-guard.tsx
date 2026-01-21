@@ -1,12 +1,13 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  allowedRoles?: ("ADMIN" | "COACH" | "CUSTOMER")[];
+  allowedRoles?: ('ADMIN' | 'COACH' | 'CUSTOMER')[];
 }
 
 export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
@@ -14,23 +15,26 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
+  // Enable sliding token expiration
+  useTokenRefresh();
+
   useEffect(() => {
     const checkAuth = () => {
       // Check for access token
-      const accessToken = localStorage.getItem("accessToken");
-      const authStorage = localStorage.getItem("auth-storage");
+      const accessToken = localStorage.getItem('accessToken');
+      const authStorage = localStorage.getItem('auth-storage');
 
       if (!accessToken || !authStorage) {
-        console.log("No auth credentials found, redirecting to login");
-        router.push("/login");
+        console.log('No auth credentials found, redirecting to login');
+        router.push('/login');
         return;
       }
 
       try {
         const auth = JSON.parse(authStorage);
         if (!auth?.state?.isAuthenticated) {
-          console.log("Not authenticated, redirecting to login");
-          router.push("/login");
+          console.log('Not authenticated, redirecting to login');
+          router.push('/login');
           return;
         }
 
@@ -40,12 +44,12 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         if (allowedRoles && userRole) {
           if (!allowedRoles.includes(userRole)) {
             // Redirect to appropriate dashboard
-            if (userRole === "ADMIN") {
-              router.push("/admin");
-            } else if (userRole === "COACH") {
-              router.push("/coach");
+            if (userRole === 'ADMIN') {
+              router.push('/admin');
+            } else if (userRole === 'COACH') {
+              router.push('/coach');
             } else {
-              router.push("/dashboard");
+              router.push('/dashboard');
             }
             return;
           }
@@ -55,8 +59,8 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         setIsAuthorized(true);
         setIsChecking(false);
       } catch (e) {
-        console.error("Auth check failed:", e);
-        router.push("/login");
+        console.error('Auth check failed:', e);
+        router.push('/login');
       }
     };
 

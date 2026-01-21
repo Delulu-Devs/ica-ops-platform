@@ -110,7 +110,8 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as TokenPayload;
-  } catch (_error) {
+  } catch (error) {
+    console.error('🔴 JWT Verify Error:', error);
     // Token is invalid or expired
     return null;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { LogOut, Menu, User } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,6 +25,15 @@ export function Header() {
   const { user, logout } = useAuthStore();
   const [sheetOpen, setSheetOpen] = useState(false);
   const logoutMutation = trpc.auth.logout.useMutation();
+
+  // Fetch live profile data for avatar and display name
+  const { data: profileData } = trpc.auth.me.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Use profile data if available, otherwise fallback to auth store
+  const avatarSeed = profileData?.avatarSeed || user?.email || '';
+  const displayName = profileData?.displayName || user?.email?.split('@')[0] || '';
 
   const handleLogout = async () => {
     try {
@@ -66,30 +76,36 @@ export function Header() {
         </h1>
       </div>
       <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground hidden md:inline-block">{user?.email}</span>
+        <span className="text-sm text-muted-foreground hidden md:inline-block">
+          {displayName || user?.email}
+        </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarImage
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email}`}
-                  alt={user?.email || 'User'}
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
+                  alt={displayName || user?.email || 'User'}
                 />
-                <AvatarFallback>{user?.email?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                <AvatarFallback>
+                  {(displayName?.[0] || user?.email?.[0])?.toUpperCase() || 'U'}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.email}</p>
+                <p className="text-sm font-medium leading-none">{displayName || user?.email}</p>
                 <p className="text-xs leading-none text-muted-foreground">{user?.role}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="flex items-center cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">

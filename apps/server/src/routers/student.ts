@@ -3,7 +3,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, batches, coaches, students } from '../db/schema';
+import { accounts, batches, coaches, reviewRequests, students } from '../db/schema';
 import { coachNotifications, studentNotifications } from '../services/notifications';
 import { adminProcedure, protectedProcedure, router } from '../trpc';
 
@@ -63,6 +63,12 @@ const listStudentsSchema = z.object({
 
 const removeFromBatchSchema = z.object({
   id: z.uuid({ error: 'Invalid student ID' }),
+});
+
+const updateScheduleSchema = z.object({
+  id: z.uuid({ error: 'Invalid student ID' }),
+  meetingLink: z.string().url().optional().or(z.literal('')),
+  recurringSchedule: z.string().optional(), // JSON
 });
 
 export const studentRouter = router({
@@ -135,6 +141,8 @@ export const studentRouter = router({
         status: students.status,
         assignedCoachId: students.assignedCoachId,
         assignedBatchId: students.assignedBatchId,
+        meetingLink: students.meetingLink,
+        recurringSchedule: students.recurringSchedule,
         createdAt: students.createdAt,
       })
       .from(students)
@@ -476,4 +484,183 @@ export const studentRouter = router({
 
     return updated;
   }),
+
+  // Request Review Session (Customer)
+  requestReview: protectedProcedure
+    .input(
+      z.object({
+        studentId: z.uuid(),
+        reason: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get student and verify ownership
+      const [student] = await ctx.db
+        .select()
+        .from(students)
+        .where(eq(students.id, input.studentId))
+        .limit(1);
+
+      if (!student) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Student not found',
+        });
+      }
+
+      if (ctx.user.role === 'CUSTOMER' && student.accountId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your student' });
+      }
+
+      // Check limit (1 per month)
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      const [existing] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reviewRequests)
+        .where(
+          and(
+            eq(reviewRequests.studentId, input.studentId),
+            sql`${reviewRequests.createdAt} >= ${startOfMonth.toISOString()}`,
+            sql`${reviewRequests.createdAt} <= ${endOfMonth.toISOString()}`
+          )
+        );
+
+      if ((existing?.count ?? 0) >= 1) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message:
+            'Limit reached: You can only request one review session per month for this student.',
+        });
+      }
+
+      // Create request
+      const [request] = await ctx.db
+        .insert(reviewRequests)
+        .values({
+          studentId: input.studentId,
+          reason: input.reason,
+        })
+        .returning();
+
+      return request;
+    }),
+
+  // List Review Requests (Admin)
+  listReviewRequests: adminProcedure
+    .input(
+      z.object({
+        status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']).optional(),
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [];
+      if (input.status) {
+        conditions.push(eq(reviewRequests.status, input.status));
+      }
+
+      const requests = await ctx.db
+        .select({
+          id: reviewRequests.id,
+          studentName: students.studentName,
+          reason: reviewRequests.reason,
+          status: reviewRequests.status,
+          createdAt: reviewRequests.createdAt,
+          adminNotes: reviewRequests.adminNotes,
+          studentId: students.id,
+        })
+        .from(reviewRequests)
+        .innerJoin(students, eq(reviewRequests.studentId, students.id))
+        .where(and(...conditions))
+        .orderBy(desc(reviewRequests.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return requests;
+    }),
+
+  // Update Review Request (Admin)
+  updateReviewRequestStatus: adminProcedure
+    .input(
+      z.object({
+        id: z.uuid(),
+        status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']),
+        adminNotes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(reviewRequests)
+        .set({
+          status: input.status,
+          adminNotes: input.adminNotes,
+          updatedAt: new Date(),
+        })
+        .where(eq(reviewRequests.id, input.id))
+        .returning();
+      return updated;
+    }),
+
+  // Update Schedule (Coach & Admin)
+  updateSchedule: protectedProcedure
+    .input(updateScheduleSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Get student to verify permissions
+      const [student] = await ctx.db
+        .select({
+          id: students.id,
+          assignedCoachId: students.assignedCoachId,
+        })
+        .from(students)
+        .where(eq(students.id, input.id))
+        .limit(1);
+
+      if (!student) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Student not found',
+        });
+      }
+
+      // Permission check
+      if (ctx.user.role === 'CUSTOMER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Customers cannot update schedules',
+        });
+      }
+
+      if (ctx.user.role === 'COACH') {
+        // Check if this coach is assigned to the student
+        const [coach] = await ctx.db
+          .select({ id: coaches.id })
+          .from(coaches)
+          .where(eq(coaches.accountId, ctx.user.id))
+          .limit(1);
+
+        if (!coach || student.assignedCoachId !== coach.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You can only update schedules for your assigned students',
+          });
+        }
+      }
+
+      // Update fields
+      const [updated] = await ctx.db
+        .update(students)
+        .set({
+          meetingLink: input.meetingLink,
+          recurringSchedule: input.recurringSchedule,
+          updatedAt: new Date(),
+        })
+        .where(eq(students.id, input.id))
+        .returning();
+
+      return updated;
+    }),
 });

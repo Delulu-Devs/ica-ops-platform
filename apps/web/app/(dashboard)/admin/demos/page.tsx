@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { TimePicker } from '@/components/ui/time-picker';
 
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
@@ -87,19 +89,31 @@ export default function DemosPage() {
   const limit = 10;
 
   // Form state for scheduling demo
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    studentName: string;
+    parentName: string;
+    parentEmail: string;
+    timezone: string;
+    scheduledDate: Date | undefined;
+    scheduledTime: string;
+    duration: string;
+  }>({
     studentName: '',
     parentName: '',
     parentEmail: '',
     timezone: 'Asia/Kolkata',
-    scheduledDate: '',
+    scheduledDate: undefined,
     scheduledTime: '',
     duration: '30',
   });
 
   // Reschedule form state
-  const [rescheduleData, setRescheduleData] = useState({
-    scheduledDate: '',
+  const [rescheduleData, setRescheduleData] = useState<{
+    scheduledDate: Date | undefined;
+    scheduledTime: string;
+    duration: string;
+  }>({
+    scheduledDate: undefined,
     scheduledTime: '',
     duration: '30',
   });
@@ -185,7 +199,7 @@ export default function DemosPage() {
       parentName: '',
       parentEmail: '',
       timezone: 'Asia/Kolkata',
-      scheduledDate: '',
+      scheduledDate: undefined,
       scheduledTime: '',
       duration: '30',
     });
@@ -193,7 +207,7 @@ export default function DemosPage() {
 
   const resetRescheduleForm = () => {
     setRescheduleData({
-      scheduledDate: '',
+      scheduledDate: undefined,
       scheduledTime: '',
       duration: '30',
     });
@@ -213,7 +227,8 @@ export default function DemosPage() {
       return;
     }
 
-    const startDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
+    const dateStr = formData.scheduledDate ? format(formData.scheduledDate, 'yyyy-MM-dd') : '';
+    const startDateTime = new Date(`${dateStr}T${formData.scheduledTime}`);
     const endDateTime = new Date(
       startDateTime.getTime() + parseInt(formData.duration, 10) * 60 * 1000
     );
@@ -241,9 +256,10 @@ export default function DemosPage() {
       return;
     }
 
-    const startDateTime = new Date(
-      `${rescheduleData.scheduledDate}T${rescheduleData.scheduledTime}`
-    );
+    const dateStr = rescheduleData.scheduledDate
+      ? format(rescheduleData.scheduledDate, 'yyyy-MM-dd')
+      : '';
+    const startDateTime = new Date(`${dateStr}T${rescheduleData.scheduledTime}`);
     const endDateTime = new Date(
       startDateTime.getTime() + parseInt(rescheduleData.duration, 10) * 60 * 1000
     );
@@ -713,34 +729,27 @@ export default function DemosPage() {
           <form onSubmit={handleReschedule} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="rescheduleDate">New Date *</Label>
-                <Input
-                  id="rescheduleDate"
-                  type="date"
-                  value={rescheduleData.scheduledDate}
-                  onChange={(e) =>
+                <Label>New Date *</Label>
+                <DatePicker
+                  date={rescheduleData.scheduledDate}
+                  setDate={(date) =>
                     setRescheduleData({
                       ...rescheduleData,
-                      scheduledDate: e.target.value,
+                      scheduledDate: date,
                     })
                   }
-                  min={new Date().toISOString().split('T')[0]}
-                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rescheduleTime">New Time *</Label>
-                <Input
-                  id="rescheduleTime"
-                  type="time"
+                <Label>New Time *</Label>
+                <TimePicker
                   value={rescheduleData.scheduledTime}
-                  onChange={(e) =>
+                  onChange={(time) =>
                     setRescheduleData({
                       ...rescheduleData,
-                      scheduledTime: e.target.value,
+                      scheduledTime: time,
                     })
                   }
-                  required
                 />
               </div>
             </div>
@@ -839,24 +848,17 @@ export default function DemosPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="scheduledDate">Date *</Label>
-                <Input
-                  id="scheduledDate"
-                  type="date"
-                  value={formData.scheduledDate}
-                  onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
+                <Label>Date *</Label>
+                <DatePicker
+                  date={formData.scheduledDate}
+                  setDate={(date) => setFormData({ ...formData, scheduledDate: date })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="scheduledTime">Time *</Label>
-                <Input
-                  id="scheduledTime"
-                  type="time"
+                <Label>Time *</Label>
+                <TimePicker
                   value={formData.scheduledTime}
-                  onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
-                  required
+                  onChange={(time) => setFormData({ ...formData, scheduledTime: time })}
                 />
               </div>
             </div>

@@ -1,24 +1,42 @@
 'use client';
 
 import { Calendar, Clock, Loader2, User, Users } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { trpc } from '@/lib/trpc';
 
-function StudentScheduleCard({ student }: { student: any }) {
+// Define types locally for now since we don't have shared types easily accessible
+// Define types locally for now since we don't have shared types easily accessible
+interface ScheduleItem {
+  day?: string;
+  time?: string;
+}
+
+function StudentScheduleCard({
+  student,
+}: {
+  student: {
+    id: string;
+    studentName: string;
+    studentType: '1-1' | 'GROUP';
+    status: 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+    level?: string | null;
+    assignedBatchId?: string | null;
+  };
+}) {
   const { data: batch, isLoading } = trpc.batch.getById.useQuery(
-    { id: student.assignedBatchId },
+    { id: student.assignedBatchId! },
     { enabled: !!student.assignedBatchId }
   );
 
   const handleJoinClass = () => {
-      // In a real app, this would redirect to Zoom/Meet
-      // Or fetch a link from the backend
-      toast.info('Class link is not active yet', {
-        description: 'Please check back 5 minutes before class time.'
-      });
+    // In a real app, this would redirect to Zoom/Meet
+    // Or fetch a link from the backend
+    toast.info('Class link is not active yet', {
+      description: 'Please check back 5 minutes before class time.',
+    });
   };
 
   return (
@@ -38,7 +56,7 @@ function StudentScheduleCard({ student }: { student: any }) {
           {student.level ?? 'Beginner'} Level
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="pt-4">
         {student.studentType === 'GROUP' ? (
           isLoading ? (
             <div className="flex items-center justify-center py-4">
@@ -58,13 +76,24 @@ function StudentScheduleCard({ student }: { student: any }) {
                     <span>
                       {(() => {
                         try {
-                          const schedule = JSON.parse(batch.schedule || '[]');
+                          if (!batch.schedule) return 'No schedule set';
+                          const schedule = JSON.parse(batch.schedule);
                           if (Array.isArray(schedule)) {
-                            return schedule.map((s: any) => `${s.day} ${s.time}`).join(', ');
+                            return schedule
+                              .map((s: ScheduleItem) => `${s.day || ''} ${s.time || ''}`)
+                              .join(', ');
                           }
-                          return batch.schedule;
+                          // If it's an object, try to format it or return string rep
+                          if (typeof schedule === 'object') {
+                            const schedObj = schedule as ScheduleItem;
+                            return (
+                              `${schedObj.day || ''} ${schedObj.time || ''}`.trim() ||
+                              'Custom Schedule'
+                            );
+                          }
+                          return String(schedule);
                         } catch {
-                          return batch.schedule || 'No schedule set';
+                          return batch.schedule || 'Custom Schedule';
                         }
                       })()}
                     </span>
@@ -72,7 +101,9 @@ function StudentScheduleCard({ student }: { student: any }) {
                 </div>
               </div>
               <div className="flex justify-end">
-                  <Button size="sm" onClick={handleJoinClass}>Join Class</Button>
+                <Button size="sm" onClick={handleJoinClass}>
+                  Join Class
+                </Button>
               </div>
             </div>
           ) : (

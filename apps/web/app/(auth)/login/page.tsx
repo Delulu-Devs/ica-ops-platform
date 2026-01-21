@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ import { trpc } from '@/lib/trpc';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function LoginPage() {
-  const router = useRouter();
+  /* const router = useRouter(); */
   const queryClient = useQueryClient();
   const login = useAuthStore((state) => state.login);
   const [email, setEmail] = useState('');
@@ -28,23 +27,28 @@ export default function LoginPage() {
     onSuccess: async (data: {
       user: { id: string; email: string; role: 'ADMIN' | 'COACH' | 'CUSTOMER' };
       accessToken: string;
+      refreshToken: string;
     }) => {
       login(data.user, data.accessToken);
+      // Store refresh token for sliding expiration
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       await queryClient.invalidateQueries();
       toast.success('Welcome back!');
 
       switch (data.user.role) {
         case 'ADMIN':
-          router.push('/admin');
+          window.location.href = '/admin';
           break;
         case 'COACH':
-          router.push('/coach');
+          window.location.href = '/coach';
           break;
         case 'CUSTOMER':
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
           break;
         default:
-          router.push('/');
+          window.location.href = '/';
       }
     },
     onError: (err: { message: string }) => {

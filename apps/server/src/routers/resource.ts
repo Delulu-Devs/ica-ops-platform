@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { batches, coaches, resources } from '../db/schema';
+import { batches, coaches, resources, students } from '../db/schema';
 import { coachProcedure, protectedProcedure, router } from '../trpc';
 
 const createResourceSchema = z.object({
@@ -82,22 +82,23 @@ export const resourceRouter = router({
         conditions.push(eq(resources.batchId, input.batchId));
       }
     } else if (ctx.user.role === 'CUSTOMER') {
-      // Students can only see resources for their assigned batch
-      // Or generic resources? PRD says "Upload lesson materials". Usually tied to batch or student.
-      // For hackathon, let's assume resources are tied to Batches.
-      // If input.batchId is provided, check if student is in batch.
+      // Get student's assigned batch
+      const [student] = await ctx.db
+        .select({ assignedBatchId: students.assignedBatchId })
+        .from(students)
+        .where(eq(students.accountId, ctx.user.id))
+        .limit(1);
 
-      // MVP: Just allow if student is in the batch requested.
-      // Or if no batchId, show nothing?
-      if (!input.batchId) {
-        // Maybe return all resources from their assigned batch?
-        // Complex query needed. For now require batchId for students.
+      if (!student || !student.assignedBatchId) {
         return { resources: [], total: 0 };
       }
 
-      // Verify student is in batch
-      // ... (student verification logic)
-      // For now, let's just stick to Coach side since user asked to "complete file uploads for coaches".
+      // If specific batch requested, must match assigned
+      if (input.batchId && input.batchId !== student.assignedBatchId) {
+        return { resources: [], total: 0 };
+      }
+
+      conditions.push(eq(resources.batchId, student.assignedBatchId));
     }
 
     // Default fetch for Coach

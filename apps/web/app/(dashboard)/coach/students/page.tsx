@@ -1,11 +1,17 @@
 'use client';
 
-import { Loader2, Search } from 'lucide-react';
+import { CalendarClock, Link as LinkIcon, Loader2, MoreHorizontal, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -16,10 +22,24 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { trpc } from '@/lib/trpc';
+import { ManageScheduleDialog } from './manage-schedule-dialog';
+
+interface Student {
+  id: string;
+  studentName: string;
+  parentName: string;
+  studentAge: number | string | null;
+  level?: string | null;
+  studentType: string;
+  status: string;
+  meetingLink?: string | null;
+}
 
 export default function CoachStudentsPage() {
   const [page] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
   const { data, isLoading } = trpc.student.list.useQuery({
     limit: 10,
@@ -67,6 +87,7 @@ export default function CoachStudentsPage() {
                     <TableHead>Level</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -117,11 +138,45 @@ export default function CoachStudentsPage() {
                           {student.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {student.studentType === '1-1' && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedStudent(student);
+                                  setIsScheduleDialogOpen(true);
+                                }}
+                              >
+                                <CalendarClock className="mr-2 h-4 w-4" />
+                                Manage Schedule
+                              </DropdownMenuItem>
+                            )}
+                            {student.meetingLink && (
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={student.meetingLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <LinkIcon className="mr-2 h-4 w-4" />
+                                  Join Meeting
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {data?.students.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         No students found.
                       </TableCell>
                     </TableRow>
@@ -132,6 +187,15 @@ export default function CoachStudentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {selectedStudent && (
+        <ManageScheduleDialog
+          open={isScheduleDialogOpen}
+          onOpenChange={setIsScheduleDialogOpen}
+          student={selectedStudent}
+          onSuccess={() => setSelectedStudent(null)}
+        />
+      )}
     </div>
   );
 }

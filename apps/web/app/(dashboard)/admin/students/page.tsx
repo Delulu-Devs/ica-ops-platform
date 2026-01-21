@@ -66,6 +66,7 @@ export default function StudentsPage() {
     'ALL'
   );
   const [typeFilter, setTypeFilter] = useState<'1-1' | 'GROUP' | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -103,6 +104,7 @@ export default function StudentsPage() {
     offset: page * 10,
     status: statusFilter === 'ALL' ? undefined : statusFilter,
     studentType: typeFilter === 'ALL' ? undefined : typeFilter,
+    search: searchQuery || undefined,
   });
 
   // Stats Queries
@@ -157,6 +159,17 @@ export default function StudentsPage() {
     },
     onError: (err) => {
       toast.error('Failed to update status', { description: err.message });
+    },
+  });
+
+  // Assign Coach Mutation
+  const assignCoachMutation = trpc.student.assignCoach.useMutation({
+    onSuccess: () => {
+      toast.success('Coach assigned successfully');
+      refetch();
+    },
+    onError: (err) => {
+      toast.error('Failed to assign coach', { description: err.message });
     },
   });
 
@@ -295,7 +308,15 @@ export default function StudentsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-muted/20 p-4 rounded-lg border">
         <div className="relative w-full md:w-72">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search students by name..." className="pl-9 bg-background" />
+          <Input
+            placeholder="Search students by name..."
+            className="pl-9 bg-background"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(0); // Reset to first page on search
+            }}
+          />
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <Select
@@ -482,6 +503,34 @@ export default function StudentsPage() {
                               >
                                 <XCircle className="mr-2 h-4 w-4 text-red-500" /> Cancelled
                               </DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <Users className="mr-2 h-4 w-4" /> Assign Coach
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {coachesData?.coaches?.length === 0 ? (
+                                <DropdownMenuItem disabled>No coaches available</DropdownMenuItem>
+                              ) : (
+                                coachesData?.coaches?.map((coach) => (
+                                  <DropdownMenuItem
+                                    key={coach.id}
+                                    onClick={() =>
+                                      assignCoachMutation.mutate({
+                                        id: student.id,
+                                        coachId: coach.id,
+                                      })
+                                    }
+                                    disabled={student.assignedCoachId === coach.id}
+                                  >
+                                    {coach.name}
+                                    {student.assignedCoachId === coach.id && (
+                                      <CheckCircle className="ml-2 h-3 w-3 text-green-500" />
+                                    )}
+                                  </DropdownMenuItem>
+                                ))
+                              )}
                             </DropdownMenuSubContent>
                           </DropdownMenuSub>
                         </DropdownMenuContent>

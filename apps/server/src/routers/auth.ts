@@ -1,9 +1,10 @@
 // Auth Router - handles authentication and user management
 
+import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { and, eq, gt } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, coaches, type Role, refreshTokens } from '../db/schema';
+import { accounts, coaches, passwordResets, type Role, refreshTokens } from '../db/schema';
 import { generateTokens, verifyRefreshToken } from '../lib/jwt';
 import { hashPassword, validatePassword, verifyPassword } from '../lib/password';
 import {
@@ -168,6 +169,85 @@ export const authRouter = router({
     };
   }),
 
+  // Forgot Password
+  forgotPassword: rateLimitedProcedure
+    .input(z.object({ email: z.email() }))
+    .mutation(async ({ ctx, input }) => {
+      const [account] = await ctx.db
+        .select()
+        .from(accounts)
+        .where(eq(accounts.email, input.email.toLowerCase()))
+        .limit(1);
+
+      if (account) {
+        const token = randomUUID();
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+        await ctx.db.insert(passwordResets).values({
+          accountId: account.id,
+          token,
+          expiresAt,
+        });
+
+        // Mock Send Email
+        console.log('------------------------------------------------');
+        console.log(`[Email Service] Password Reset for ${input.email}`);
+        console.log(`Link: http://localhost:3000/reset-password?token=${token}`);
+        console.log('------------------------------------------------');
+      }
+
+      return {
+        success: true,
+        message: 'If an account exists, a reset email has been sent.',
+      };
+    }),
+
+  // Reset Password
+  resetPassword: rateLimitedProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        newPassword: z.string().min(8, { error: 'Password must be at least 8 characters' }),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const validation = validatePassword(input.newPassword);
+      if (!validation.valid) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: validation.errors.join(', '),
+        });
+      }
+
+      const [resetRecord] = await ctx.db
+        .select()
+        .from(passwordResets)
+        .where(eq(passwordResets.token, input.token))
+        .limit(1);
+
+      if (!resetRecord || resetRecord.used || new Date() > resetRecord.expiresAt) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid or expired reset token',
+        });
+      }
+
+      const passwordHash = await hashPassword(input.newPassword);
+      await ctx.db
+        .update(accounts)
+        .set({ passwordHash })
+        .where(eq(accounts.id, resetRecord.accountId));
+
+      await ctx.db
+        .update(passwordResets)
+        .set({ used: true })
+        .where(eq(passwordResets.id, resetRecord.id));
+
+      await ctx.db.delete(refreshTokens).where(eq(refreshTokens.accountId, resetRecord.accountId));
+
+      return { success: true };
+    }),
+
   // Logout - invalidate refresh token
   logout: protectedProcedure.mutation(async ({ ctx }) => {
     // Delete all refresh tokens for this user
@@ -183,6 +263,8 @@ export const authRouter = router({
         id: accounts.id,
         email: accounts.email,
         role: accounts.role,
+        displayName: accounts.displayName,
+        avatarSeed: accounts.avatarSeed,
         createdAt: accounts.createdAt,
       })
       .from(accounts)
@@ -330,8 +412,60 @@ export const authRouter = router({
         })
         .where(eq(accounts.id, ctx.user.id));
 
-      // Invalidate all refresh tokens (force re-login)
+      // Invalidate all existing refresh tokens (invalidates other sessions)
       await ctx.db.delete(refreshTokens).where(eq(refreshTokens.accountId, ctx.user.id));
+
+      // Generate new tokens for current session
+      const tokens = await generateTokens({
+        accountId: account.id,
+        email: account.email,
+        role: account.role,
+      });
+
+      // Store new refresh token
+      await ctx.db.insert(refreshTokens).values({
+        accountId: account.id,
+        token: tokens.refreshToken,
+        expiresAt: tokens.refreshTokenExpiresAt,
+      });
+
+      return {
+        success: true,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    }),
+
+  // Update profile
+  updateProfile: protectedProcedure
+    .input(
+      z.object({
+        displayName: z.string().min(1).max(255).optional(),
+        avatarSeed: z.string().max(255).optional(),
+        bio: z.string().max(1000).optional(), // For coaches only
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Update account fields
+      await ctx.db
+        .update(accounts)
+        .set({
+          displayName: input.displayName,
+          avatarSeed: input.avatarSeed,
+          updatedAt: new Date(),
+        })
+        .where(eq(accounts.id, ctx.user.id));
+
+      // If coach, also update coach profile
+      if (ctx.user.role === 'COACH' && (input.displayName || input.bio !== undefined)) {
+        const updateFields: { name?: string; bio?: string; updatedAt: Date } = {
+          updatedAt: new Date(),
+        };
+        if (input.displayName) updateFields.name = input.displayName;
+        if (input.bio !== undefined) updateFields.bio = input.bio;
+
+        await ctx.db.update(coaches).set(updateFields).where(eq(coaches.accountId, ctx.user.id));
+      }
 
       return { success: true };
     }),

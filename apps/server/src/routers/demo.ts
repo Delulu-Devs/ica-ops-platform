@@ -3,7 +3,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { accounts, coaches, demos, students } from '../db/schema';
+import { accounts, coaches, demos, plans, students, subscriptions } from '../db/schema';
 import { emailService } from '../lib/email';
 import { generateRandomPassword, hashPassword } from '../lib/password';
 import { demoNotifications } from '../services/notifications';
@@ -18,9 +18,11 @@ import {
 // Input validation schemas
 const createDemoSchema = z.object({
   studentName: z.string().min(2, { error: 'Student name is required' }),
+  studentAge: z.number().min(4).max(100).optional(),
   parentName: z.string().min(2, { error: 'Parent name is required' }),
   parentEmail: z.email({ error: 'Valid email is required' }),
   timezone: z.string().optional(),
+  country: z.string().optional(),
   scheduledStart: z.iso.datetime({ error: 'Invalid date format' }),
   scheduledEnd: z.iso.datetime({ error: 'Invalid date format' }),
 });
@@ -120,9 +122,11 @@ export const demoRouter = router({
       .insert(demos)
       .values({
         studentName: input.studentName,
+        studentAge: input.studentAge,
         parentName: input.parentName,
         parentEmail: input.parentEmail.toLowerCase(),
         timezone: input.timezone,
+        country: input.country,
         scheduledStart: start,
         scheduledEnd: end,
         coachId: availableCoach?.id || null,
@@ -652,16 +656,68 @@ export const demoRouter = router({
     await ctx.db.insert(students).values({
       accountId,
       studentName: demo.studentName,
+      studentAge: demo.studentAge,
       parentName: demo.parentName,
       parentEmail: parentEmailLower,
       timezone: demo.timezone,
+      country: demo.country,
       studentType: demo.recommendedStudentType || 'GROUP',
       level: demo.recommendedLevel,
       assignedCoachId: demo.coachId,
       status: 'ACTIVE',
     });
 
-    // 3. Update Demo Status
+    // 3. Create Subscription (New Step)
+    // Find a matching active plan
+    const [plan] = await ctx.db
+      .select()
+      .from(plans)
+      .where(
+        and(eq(plans.studentType, demo.recommendedStudentType || 'GROUP'), eq(plans.isActive, true))
+      )
+      .limit(1);
+
+    let planId = plan?.id;
+    let planAmount = plan?.amount;
+    let planCycle = plan?.billingCycle;
+
+    if (!planId) {
+      // Create a default plan if none exists (fallback)
+      const [newPlan] = await ctx.db
+        .insert(plans)
+        .values({
+          name: `${demo.recommendedStudentType || 'GROUP'} Standard Plan`,
+          amount: '100.00', // Default amount
+          studentType: demo.recommendedStudentType || 'GROUP',
+          billingCycle: 'monthly',
+          description: 'Auto-created default plan',
+        })
+        .returning();
+
+      if (!newPlan) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create default plan',
+        });
+      }
+
+      planId = newPlan.id;
+      planAmount = newPlan.amount;
+      planCycle = newPlan.billingCycle;
+    }
+
+    // Create active subscription
+    await ctx.db.insert(subscriptions).values({
+      accountId,
+      planId: planId!,
+      amount: planAmount!,
+      billingCycle: planCycle!,
+      status: 'ACTIVE',
+      startedAt: new Date(),
+      nextDueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 days
+    });
+
+    // 4. Update Demo Status
     const [updated] = await ctx.db
       .update(demos)
       .set({
@@ -671,7 +727,7 @@ export const demoRouter = router({
       .where(eq(demos.id, input.id))
       .returning();
 
-    // 4. Send Welcome Email (Non-blocking)
+    // 5. Send Welcome Email (Non-blocking)
     try {
       if (!existingAccount && generatedPassword) {
         // Send email with credentials

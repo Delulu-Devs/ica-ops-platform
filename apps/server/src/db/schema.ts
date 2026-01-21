@@ -43,6 +43,13 @@ export const subscriptionStatusEnum = pgEnum('subscription_status', [
   'CANCELLED',
 ]);
 
+export const reviewRequestStatusEnum = pgEnum('review_request_status', [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'COMPLETED',
+]);
+
 // ============ TABLES ============
 
 // Account (Authentication Only)
@@ -52,6 +59,8 @@ export const accounts = pgTable('accounts', {
   passwordHash: text('password_hash'),
   authProvider: varchar('auth_provider', { length: 50 }),
   role: roleEnum('role').notNull().default('CUSTOMER'),
+  displayName: varchar('display_name', { length: 255 }),
+  avatarSeed: varchar('avatar_seed', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -115,6 +124,8 @@ export const students = pgTable(
     assignedBatchId: uuid('assigned_batch_id').references(() => batches.id, {
       onDelete: 'set null',
     }),
+    meetingLink: varchar('meeting_link', { length: 500 }), // For 1-1 students
+    recurringSchedule: text('recurring_schedule'), // JSON for 1-1 schedule
     status: studentStatusEnum('status').default('ACTIVE').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -132,9 +143,11 @@ export const demos = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     studentName: varchar('student_name', { length: 255 }).notNull(),
+    studentAge: integer('student_age'),
     parentName: varchar('parent_name', { length: 255 }).notNull(),
     parentEmail: varchar('parent_email', { length: 255 }).notNull(),
     timezone: varchar('timezone', { length: 50 }),
+    country: varchar('country', { length: 100 }),
     scheduledStart: timestamp('scheduled_start').notNull(),
     scheduledEnd: timestamp('scheduled_end').notNull(),
     coachId: uuid('coach_id').references(() => coaches.id, {
@@ -261,6 +274,42 @@ export const resources = pgTable('resources', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Review Requests
+export const reviewRequests = pgTable(
+  'review_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    studentId: uuid('student_id')
+      .references(() => students.id, { onDelete: 'cascade' })
+      .notNull(),
+    reason: text('reason'),
+    status: reviewRequestStatusEnum('status').default('PENDING').notNull(),
+    adminNotes: text('admin_notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_review_requests_student').on(table.studentId),
+    index('idx_review_requests_status').on(table.status),
+  ]
+);
+
+// Password Resets
+export const passwordResets = pgTable(
+  'password_resets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .references(() => accounts.id, { onDelete: 'cascade' })
+      .notNull(),
+    token: text('token').notNull().unique(),
+    expiresAt: timestamp('expires_at').notNull(),
+    used: boolean('used').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [index('idx_password_resets_token').on(table.token)]
+);
+
 // ============ RELATIONS ============
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
@@ -295,7 +344,7 @@ export const batchesRelations = relations(batches, ({ one, many }) => ({
   resources: many(resources),
 }));
 
-export const studentsRelations = relations(students, ({ one }) => ({
+export const studentsRelations = relations(students, ({ one, many }) => ({
   account: one(accounts, {
     fields: [students.accountId],
     references: [accounts.id],
@@ -308,6 +357,7 @@ export const studentsRelations = relations(students, ({ one }) => ({
     fields: [students.assignedBatchId],
     references: [batches.id],
   }),
+  reviewRequests: many(reviewRequests),
 }));
 
 export const demosRelations = relations(demos, ({ one }) => ({
@@ -368,6 +418,21 @@ export const resourcesRelations = relations(resources, ({ one }) => ({
   }),
 }));
 
+export const reviewRequestsRelations = relations(reviewRequests, ({ one }) => ({
+  student: one(students, {
+    fields: [reviewRequests.studentId],
+    references: [students.id],
+    relationName: 'reviewRequests',
+  }),
+}));
+
+export const passwordResetsRelations = relations(passwordResets, ({ one }) => ({
+  account: one(accounts, {
+    fields: [passwordResets.accountId],
+    references: [accounts.id],
+  }),
+}));
+
 // ============ TYPE EXPORTS ============
 
 export type Account = typeof accounts.$inferSelect;
@@ -419,3 +484,10 @@ export type DemoStatus =
   | 'CONVERTED'
   | 'DROPPED';
 export type SubscriptionStatus = 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED';
+
+export type ReviewRequest = typeof reviewRequests.$inferSelect;
+export type NewReviewRequest = typeof reviewRequests.$inferInsert;
+export type ReviewRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+
+export type PasswordReset = typeof passwordResets.$inferSelect;
+export type NewPasswordReset = typeof passwordResets.$inferInsert;

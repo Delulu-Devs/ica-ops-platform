@@ -13,19 +13,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface RequestReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function RequestReviewDialog({
-  open,
-  onOpenChange,
-}: RequestReviewDialogProps) {
+export function RequestReviewDialog({ open, onOpenChange }: RequestReviewDialogProps) {
   const [studentId, setStudentId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,26 +36,31 @@ export function RequestReviewDialog({
   const { data } = trpc.student.list.useQuery({});
   const students = data?.students || [];
 
+  const requestReviewMutation = trpc.student.requestReview.useMutation({
+    onSuccess: () => {
+      toast.success('Review request submitted', {
+        description: 'An admin will review your request and get back to you shortly.',
+      });
+      onOpenChange(false);
+      setReason('');
+      setStudentId('');
+      setIsSubmitting(false);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+      setIsSubmitting(false);
+    },
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentId) {
       toast.error('Please select a student');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
-    // Simulate API call since specific endpoint might be missing in MVP
-    // In production, this would hit trpc.student.requestReview
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success('Review request submitted', {
-        description: 'An admin will review your request and get back to you shortly.'
-      });
-      onOpenChange(false);
-      setReason('');
-      setStudentId('');
-    }, 1000);
+    requestReviewMutation.mutate({ studentId, reason });
   };
 
   return (
@@ -61,8 +69,7 @@ export function RequestReviewDialog({
         <DialogHeader>
           <DialogTitle>Request Review Session</DialogTitle>
           <DialogDescription>
-            Request a special review session with a master coach. 
-            Limit: 1 per month.
+            Request a special review session with a master coach. Limit: 1 per month.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
@@ -98,9 +105,7 @@ export function RequestReviewDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Request
             </Button>
           </DialogFooter>

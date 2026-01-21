@@ -11,6 +11,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   login: (user: User, accessToken: string) => void;
+  updateTokens: (accessToken: string) => void;
   logout: () => void;
 }
 
@@ -25,9 +26,15 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ user, isAuthenticated: true });
       },
+      updateTokens: (accessToken) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+        }
+      },
       logout: () => {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
         }
         set({ user: null, isAuthenticated: false });
       },

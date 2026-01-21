@@ -79,7 +79,7 @@ app.use('/uploads/*', serveStatic({ root: './' }));
 app.post('/upload', async (c) => {
   try {
     const body = await c.req.parseBody();
-    const file = body['file'];
+    const file = body.file;
 
     if (file && file instanceof File) {
       const buffer = await file.arrayBuffer();
@@ -119,6 +119,7 @@ app.use(
   trpcServer({
     router: appRouter,
     createContext: async (_opts, c) => {
+      console.error('Creating tRPC Context...');
       return await createContext(c);
     },
     onError: ({ error }) => {

@@ -91,12 +91,28 @@ function ChatContent() {
     },
   });
 
+  // Track if we've already marked as read to prevent loops
+  const lastMarkedRoom = useRef<string | null>(null);
+  const lastMessageCount = useRef<number>(0);
+
+  // Store mutation in ref to avoid dependency issues
+  const markAsReadRef = useRef(markAsReadMutation.mutate);
+  markAsReadRef.current = markAsReadMutation.mutate;
+
   // Mark as read when room opens or new messages arrive
   useEffect(() => {
-    if (selectedRoom && messages?.some((m) => !m.isRead && m.senderId !== user?.id)) {
-      markAsReadMutation.mutate({ roomId: selectedRoom });
+    if (!selectedRoom || !messages) return;
+
+    const hasUnread = messages.some((m) => !m.isRead && m.senderId !== user?.id);
+    const isNewContext =
+      selectedRoom !== lastMarkedRoom.current || messages.length > lastMessageCount.current;
+
+    if (hasUnread && isNewContext) {
+      lastMarkedRoom.current = selectedRoom;
+      lastMessageCount.current = messages.length;
+      markAsReadRef.current({ roomId: selectedRoom });
     }
-  }, [selectedRoom, messages, user?.id, markAsReadMutation]);
+  }, [selectedRoom, messages, user?.id]);
 
   // Real Socket.io hook for real-time updates
   const handleNewMessage = useCallback(() => {

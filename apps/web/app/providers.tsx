@@ -11,15 +11,28 @@ function getAccessToken(): string | null {
   return localStorage.getItem('accessToken');
 }
 
+import { useTokenRefresh } from '@/hooks/useTokenRefresh';
+
+// Component to handle token refreshing
+function TokenRefresher() {
+  useTokenRefresh();
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
         queryCache: new QueryCache({
-          onError: (error: any) => {
-            if (error?.data?.httpStatus === 401) {
+          onError: (error: unknown) => {
+            const err = error as { data?: { httpStatus?: number } };
+            if (err?.data?.httpStatus === 401) {
               if (typeof window !== 'undefined') {
+                // Prevent loop if already on login page
+                if (window.location.pathname.includes('/login')) return;
+
                 localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('auth-storage');
                 window.location.href = '/login';
               }
@@ -27,10 +40,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
           },
         }),
         mutationCache: new MutationCache({
-          onError: (error: any) => {
-            if (error?.data?.httpStatus === 401) {
+          onError: (error: unknown) => {
+            const err = error as { data?: { httpStatus?: number } };
+            if (err?.data?.httpStatus === 401) {
               if (typeof window !== 'undefined') {
+                // Prevent loop if already on login page
+                if (window.location.pathname.includes('/login')) return;
+
                 localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('auth-storage');
                 window.location.href = '/login';
               }
@@ -39,8 +57,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }),
         defaultOptions: {
           queries: {
-            retry: (failureCount, error: any) => {
-              if (error?.data?.httpStatus === 401) return false;
+            retry: (failureCount, error: unknown) => {
+              const err = error as { data?: { httpStatus?: number } };
+              if (err?.data?.httpStatus === 401) return false;
               return failureCount < 3;
             },
             staleTime: 5 * 1000,
@@ -59,6 +78,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           // This function is called fresh for each request
           async headers() {
             const token = getAccessToken();
+            // console.log('🔍 Client: Sending Request...', !!token);
             if (token) {
               return {
                 Authorization: `Bearer ${token}`,
@@ -73,7 +93,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <TokenRefresher />
+        {children}
+      </QueryClientProvider>
     </trpc.Provider>
   );
 }
