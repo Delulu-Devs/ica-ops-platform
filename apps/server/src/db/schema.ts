@@ -245,6 +245,22 @@ export const refreshTokens = pgTable(
   (table) => [index('idx_refresh_tokens_account').on(table.accountId)]
 );
 
+// Resources / Lesson Materials
+export const resources = pgTable('resources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  fileUrl: varchar('file_url', { length: 500 }).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(), // pdf, pgn, image
+  coachId: uuid('coach_id')
+    .references(() => coaches.id, { onDelete: 'cascade' })
+    .notNull(),
+  batchId: uuid('batch_id').references(() => batches.id, {
+    onDelete: 'set null',
+  }), // Optional: assign to specific batch
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // ============ RELATIONS ============
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
@@ -267,6 +283,7 @@ export const coachesRelations = relations(coaches, ({ one, many }) => ({
   batches: many(batches),
   students: many(students),
   demos: many(demos),
+  resources: many(resources),
 }));
 
 export const batchesRelations = relations(batches, ({ one, many }) => ({
@@ -275,6 +292,7 @@ export const batchesRelations = relations(batches, ({ one, many }) => ({
     references: [coaches.id],
   }),
   students: many(students),
+  resources: many(resources),
 }));
 
 export const studentsRelations = relations(students, ({ one }) => ({
@@ -339,6 +357,17 @@ export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
   }),
 }));
 
+export const resourcesRelations = relations(resources, ({ one }) => ({
+  coach: one(coaches, {
+    fields: [resources.coachId],
+    references: [coaches.id],
+  }),
+  batch: one(batches, {
+    fields: [resources.batchId],
+    references: [batches.id],
+  }),
+}));
+
 // ============ TYPE EXPORTS ============
 
 export type Account = typeof accounts.$inferSelect;
@@ -370,6 +399,9 @@ export type NewChatRoomMember = typeof chatRoomMembers.$inferInsert;
 
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type NewRefreshToken = typeof refreshTokens.$inferInsert;
+
+export type Resource = typeof resources.$inferSelect;
+export type NewResource = typeof resources.$inferInsert;
 
 // Role type for use in the app
 export type Role = 'ADMIN' | 'COACH' | 'CUSTOMER';

@@ -6,9 +6,9 @@ import { batchRouter } from './batch';
 import { chatRouter } from './chat';
 import { coachRouter } from './coach';
 import { demoRouter } from './demo';
+import { resourceRouter } from './resource';
 import { studentRouter } from './student';
 import { subscriptionRouter } from './subscription';
-
 // Combine all routers into the main app router
 export const appRouter = router({
   auth: authRouter,
@@ -19,6 +19,7 @@ export const appRouter = router({
   chat: chatRouter,
   analytics: analyticsRouter,
   subscription: subscriptionRouter,
+  resource: resourceRouter,
 });
 
 // Export type for client-side type inference

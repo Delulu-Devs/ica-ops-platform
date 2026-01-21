@@ -6,6 +6,7 @@ import {
   Calendar,
   CreditCard,
   DollarSign,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
@@ -79,6 +80,12 @@ export function SidebarContent({ className, onNavigate }: SidebarProps) {
       href: '/coach/students',
       label: 'My Students',
       icon: Users,
+      roles: ['COACH'],
+    },
+    {
+      href: '/coach/resources',
+      label: 'Resources',
+      icon: FileText,
       roles: ['COACH'],
     },
     {
