@@ -43,6 +43,7 @@ EXPOSE 3001
 
 COPY --from=builder --chown=serverjs:nodejs /app/apps/server/package.json ./package.json
 COPY --from=builder --chown=serverjs:nodejs /app/apps/server/src ./src
+COPY --from=builder --chown=serverjs:nodejs /app/apps/server/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=serverjs:nodejs /app/node_modules ./node_modules
 
 # Push schema changes and seed database before starting
