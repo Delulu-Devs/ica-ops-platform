@@ -68,7 +68,7 @@ services:
       NEXT_PUBLIC_API_URL: http://server:3001
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      - "3005:3000"
     restart: always
     networks:
       - dokploy-network
