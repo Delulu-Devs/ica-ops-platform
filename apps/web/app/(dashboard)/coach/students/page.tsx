@@ -1,17 +1,11 @@
 'use client';
 
-import { CalendarClock, Link as LinkIcon, Loader2, MoreHorizontal, Search } from 'lucide-react';
+import { CalendarClock, Link as LinkIcon, Loader2, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -87,7 +81,7 @@ export default function CoachStudentsPage() {
                     <TableHead>Level</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -139,38 +133,32 @@ export default function CoachStudentsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
+                        <div className="flex justify-end gap-2">
+                          {student.studentType === '1-1' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedStudent(student);
+                                setIsScheduleDialogOpen(true);
+                              }}
+                              title="Manage Schedule"
+                            >
+                              <CalendarClock className="h-4 w-4" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {student.studentType === '1-1' && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedStudent(student);
-                                  setIsScheduleDialogOpen(true);
-                                }}
+                          )}
+                          {student.meetingLink && (
+                            <Button variant="ghost" size="icon" asChild title="Join Meeting">
+                              <a
+                                href={student.meetingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
                               >
-                                <CalendarClock className="mr-2 h-4 w-4" />
-                                Manage Schedule
-                              </DropdownMenuItem>
-                            )}
-                            {student.meetingLink && (
-                              <DropdownMenuItem asChild>
-                                <a
-                                  href={student.meetingLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <LinkIcon className="mr-2 h-4 w-4" />
-                                  Join Meeting
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                                <LinkIcon className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Calendar, FileText, Loader2, MoreVertical, Plus, Users, Video } from 'lucide-react';
+import { Calendar, FileText, Loader2, Plus, Users, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useRef } from 'react';
@@ -10,12 +10,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { trpc } from '@/lib/trpc';
 
@@ -103,7 +97,22 @@ export default function BatchDetailsPage() {
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {batch.schedule || 'Flexible Schedule'}
+              {(() => {
+                try {
+                  const s = JSON.parse(batch.schedule || '{}');
+                  if (s.days && Array.isArray(s.days)) {
+                    return (
+                      <span>
+                        {s.days.map((d: string) => d.substring(0, 3)).join(', ')} at {s.time}{' '}
+                        {s.duration ? `(${s.duration}m)` : ''}
+                      </span>
+                    );
+                  }
+                  return batch.schedule || 'Flexible Schedule';
+                } catch {
+                  return batch.schedule || 'Flexible Schedule';
+                }
+              })()}
             </div>
           </div>
         </div>
@@ -162,17 +171,6 @@ export default function BatchDetailsPage() {
                           </div>
                         </div>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Profile</DropdownMenuItem>
-                          <DropdownMenuItem>Message Parent</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
                   ))}
                 </div>
