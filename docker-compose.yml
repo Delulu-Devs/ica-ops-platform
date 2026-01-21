@@ -65,7 +65,7 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: ica_web_prod
     environment:
-      NEXT_PUBLIC_API_URL: http://server:3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://server:3001}
       NODE_ENV: production
     ports:
       - "3005:3000"
