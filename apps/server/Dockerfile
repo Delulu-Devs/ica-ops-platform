@@ -41,4 +41,9 @@ USER serverjs
 
 EXPOSE 3001
 
-CMD ["bun", "run", "dist/index.js"]
+COPY --from=builder --chown=serverjs:nodejs /app/apps/server/package.json ./package.json
+COPY --from=builder --chown=serverjs:nodejs /app/apps/server/src ./src
+COPY --from=builder --chown=serverjs:nodejs /app/node_modules ./node_modules
+
+# Push schema changes and seed database before starting
+CMD ["sh", "-c", "bun run db:push && bun run db:seed && bun run dist/index.js"]
