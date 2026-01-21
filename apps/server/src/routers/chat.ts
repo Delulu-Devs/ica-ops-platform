@@ -179,13 +179,59 @@ export const chatRouter = router({
 
   getMessages: protectedProcedure.input(getMessagesSchema).query(async ({ ctx, input }) => {
     // Verify user is member of room
-    const [membership] = await ctx.db
+    let [membership] = await ctx.db
       .select()
       .from(chatRoomMembers)
       .where(
         and(eq(chatRoomMembers.roomId, input.roomId), eq(chatRoomMembers.accountId, ctx.user.id))
       )
       .limit(1);
+
+    // Auto-join logic for Batch Rooms if authorized
+    if (!membership && input.roomId.startsWith('batch:')) {
+      const batchId = input.roomId.split(':')[1];
+      if (batchId) {
+        let canJoin = false;
+
+        if (ctx.user.role === 'ADMIN') {
+          canJoin = true;
+        } else if (ctx.user.role === 'COACH') {
+          // Check if this coach is assigned to this batch
+          const [result] = await ctx.db
+            .select()
+            .from(batches)
+            .innerJoin(coaches, eq(batches.coachId, coaches.id))
+            .where(and(eq(batches.id, batchId), eq(coaches.accountId, ctx.user.id)));
+          if (result) canJoin = true;
+        } else if (ctx.user.role === 'CUSTOMER') {
+          // Check if student is assigned to this batch
+          const [student] = await ctx.db
+            .select()
+            .from(students)
+            .where(and(eq(students.accountId, ctx.user.id), eq(students.assignedBatchId, batchId)));
+          if (student) canJoin = true;
+        }
+
+        if (canJoin) {
+          // Create membership
+          await ctx.db.insert(chatRoomMembers).values({
+            roomId: input.roomId,
+            accountId: ctx.user.id,
+            role: ctx.user.role.toLowerCase(),
+          });
+
+          // Re-fetch (or mock) membership to pass the check
+          membership = {
+            id: 'auto-joined',
+            roomId: input.roomId,
+            accountId: ctx.user.id,
+            role: ctx.user.role.toLowerCase(),
+            joinedAt: new Date(),
+          };
+        }
+      }
+    }
+
     if (!membership)
       throw new TRPCError({
         code: 'FORBIDDEN',

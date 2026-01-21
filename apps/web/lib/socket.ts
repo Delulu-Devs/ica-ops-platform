@@ -1,5 +1,5 @@
 // Socket.io client for real-time communication
-import { io, Socket } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 
 // Socket.io server URL
 const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
@@ -13,6 +13,7 @@ export function getSocket(): Socket {
     socket = io(SOCKET_URL, {
       autoConnect: false,
       withCredentials: true,
+      transports: ['websocket'], // Force WebSocket to avoid XHR poll errors
     });
 
     // Connection event handlers

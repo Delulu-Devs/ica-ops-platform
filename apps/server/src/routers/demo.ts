@@ -7,7 +7,13 @@ import { accounts, coaches, demos, students } from '../db/schema';
 import { emailService } from '../lib/email';
 import { generateRandomPassword, hashPassword } from '../lib/password';
 import { demoNotifications } from '../services/notifications';
-import { adminProcedure, coachProcedure, publicProcedure, router } from '../trpc';
+import {
+  adminProcedure,
+  coachProcedure,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from '../trpc';
 
 // Input validation schemas
 const createDemoSchema = z.object({
@@ -681,4 +687,53 @@ export const demoRouter = router({
 
     return updated;
   }),
+  // Update meeting link (admin or assigned coach)
+  updateMeetingLink: protectedProcedure
+    .input(
+      z.object({
+        id: z.uuid(),
+        meetingLink: z.string().url({ error: 'Invalid URL' }),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [demo] = await ctx.db
+        .select({ id: demos.id, coachId: demos.coachId })
+        .from(demos)
+        .where(eq(demos.id, input.id))
+        .limit(1);
+
+      if (!demo) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Demo not found',
+        });
+      }
+
+      // Authorization check
+      if (ctx.user.role === 'COACH') {
+        const [coach] = await ctx.db
+          .select({ id: coaches.id })
+          .from(coaches)
+          .where(eq(coaches.accountId, ctx.user.id))
+          .limit(1);
+
+        if (!coach || demo.coachId !== coach.id) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You can only update demos assigned to you',
+          });
+        }
+      }
+
+      const [updated] = await ctx.db
+        .update(demos)
+        .set({
+          meetingLink: input.meetingLink,
+          updatedAt: new Date(),
+        })
+        .where(eq(demos.id, input.id))
+        .returning();
+
+      return updated;
+    }),
 });

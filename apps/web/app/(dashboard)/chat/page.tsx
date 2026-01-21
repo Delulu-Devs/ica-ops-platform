@@ -10,7 +10,8 @@ import {
   Search,
   Send,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -32,13 +33,24 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-export default function ChatPage() {
+function ChatContent() {
   const user = useAuthStore((state) => state.user);
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const initialRoomId = searchParams.get('roomId');
+
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(initialRoomId);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update selectedRoom if URL param changes (e.g. navigation)
+  useEffect(() => {
+    const roomId = searchParams.get('roomId');
+    if (roomId) {
+      setSelectedRoom(roomId);
+    }
+  }, [searchParams]);
 
   const { data: rooms, isLoading: isRoomsLoading } = trpc.chat.getRooms.useQuery();
 
@@ -250,7 +262,7 @@ export default function ChatPage() {
                           {room.name ||
                             (room.roomId.startsWith('dm:') ? 'Direct Message' : 'Group Chat')}
                         </span>
-                        {room.unreadCount > 0 && (
+                        {room.unreadCount > 0 && room.roomId !== selectedRoom && (
                           <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-2">
                             {room.unreadCount}
                           </span>
@@ -510,5 +522,19 @@ export default function ChatPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <ChatContent />
+    </Suspense>
   );
 }
