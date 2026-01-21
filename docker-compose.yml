@@ -17,6 +17,8 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    networks:
+      - dokploy-network
 
   # Redis Cache
   redis:
@@ -30,6 +32,8 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    networks:
+      - dokploy-network
 
   # API Server
   server:
@@ -51,6 +55,8 @@ services:
     ports:
       - "3001:3001"
     restart: always
+    networks:
+      - dokploy-network
 
   # Web Frontend
   web:
@@ -64,7 +70,13 @@ services:
     ports:
       - "3000:3000"
     restart: always
+    networks:
+      - dokploy-network
 
 volumes:
   postgres_data_prod:
   redis_data_prod:
+
+networks:
+  dokploy-network:
+    external: true
