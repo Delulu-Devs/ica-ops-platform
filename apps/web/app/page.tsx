@@ -19,8 +19,10 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { ThemeTogglerButton } from '@/components/animate-ui/components/buttons/theme-toggler';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   Accordion,
   AccordionContent,
@@ -30,6 +32,7 @@ import {
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans selection:bg-secondary/30 selection:text-primary">
@@ -72,30 +75,45 @@ export default function LandingPage() {
               Courses
             </Link>
             <div className="flex items-center gap-4 ml-4">
-              <Link href="/login">
-                <Button
-                  variant="ghost"
-                  className="font-semibold text-muted-foreground hover:text-primary"
-                >
-                  Login
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button
+                    variant="ghost"
+                    className="font-semibold text-muted-foreground hover:text-primary"
+                  >
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    className="font-semibold text-muted-foreground hover:text-primary"
+                  >
+                    Login
+                  </Button>
+                </Link>
+              )}
               <Link href="/demo">
                 <Button className="font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-full px-6">
                   Book Free Demo
                 </Button>
               </Link>
+              <ThemeTogglerButton modes={['light', 'dark']} variant="ghost" />
             </div>
           </nav>
 
           {/* Mobile Menu Button */}
-          <button
-            type="button"
-            className="md:hidden p-2 text-primary"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X /> : <Menu />}
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeTogglerButton modes={['light', 'dark']} variant="ghost" />
+            <button
+              type="button"
+              className="p-2 text-primary"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Nav */}
@@ -123,11 +141,19 @@ export default function LandingPage() {
               Courses
             </Link>
             <hr className="border-border/50" />
-            <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-              <Button variant="ghost" className="w-full justify-start">
-                Login
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start">
+                  Login
+                </Button>
+              </Link>
+            )}
             <Link href="/demo" onClick={() => setIsMenuOpen(false)}>
               <Button className="w-full">Book Free Demo</Button>
             </Link>

@@ -1,8 +1,8 @@
 'use client';
-
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
 import { useState } from 'react';
+import { ThemeProvider } from '@/components/theme-provider';
 import { trpc } from '@/lib/trpc';
 
 // Get access token from localStorage
@@ -94,8 +94,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <TokenRefresher />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <TokenRefresher />
+          {children}
+        </ThemeProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

@@ -4,6 +4,7 @@ import { LogOut, Menu, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { ThemeTogglerButton } from '@/components/animate-ui/components/buttons/theme-toggler';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +77,7 @@ export function Header() {
         </h1>
       </div>
       <div className="flex items-center gap-4">
+        <ThemeTogglerButton modes={['light', 'dark']} variant="ghost" className="mr-2" />
         <span className="text-sm text-muted-foreground hidden md:inline-block">
           {displayName || user?.email}
         </span>
