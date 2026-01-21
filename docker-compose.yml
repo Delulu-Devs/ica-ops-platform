@@ -1,34 +1,70 @@
+version: "3.8"
+
 services:
+  # Database
   postgres:
     image: postgres:16-alpine
-    container_name: ica_postgres
+    container_name: ica_postgres_prod
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ica_ops
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ica_ops}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: always
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: ica_redis
-    ports:
-      - "6379:6379"
+    container_name: ica_redis_prod
     volumes:
-      - redis_data:/data
+      - redis_data_prod:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: always
+
+  # API Server
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: ica_server_prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ica_ops}
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      NODE_ENV: production
+      # Add other env vars here
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    restart: always
+
+  # Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: ica_web_prod
+    environment:
+      NEXT_PUBLIC_API_URL: http://server:3001
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    restart: always
 
 volumes:
-  postgres_data:
-  redis_data:
+  postgres_data_prod:
+  redis_data_prod:
