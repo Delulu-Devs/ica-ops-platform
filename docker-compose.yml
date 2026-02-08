@@ -1,29 +1,33 @@
+# Neo-Watch Full Stack Docker Compose for Dokploy
+# Run: docker-compose up -d
+
 version: "3.8"
 
 services:
-  # Database
+  # {{{ PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: ica_postgres_prod
+    container_name: neo_watch_postgres_prod
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-ica_ops}
+      POSTGRES_USER: ${POSTGRES_USER:-neo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neo_password}
+      POSTGRES_DB: ${POSTGRES_DB:-neo_watch}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-neo_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: always
     networks:
       - dokploy-network
+  # }}}
 
-  # Redis Cache
+  # {{{ Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: ica_redis_prod
+    container_name: neo_watch_redis_prod
     volumes:
       - redis_data_prod:/data
     healthcheck:
@@ -34,57 +38,63 @@ services:
     restart: always
     networks:
       - dokploy-network
+  # }}}
 
-  # API Server
-  server:
+  # {{{ Backend API
+  backend:
     build:
-      context: .
-      dockerfile: apps/server/Dockerfile
-    container_name: ica_server_prod
+      context: ./neo-watch-backend
+      dockerfile: Dockerfile
+    container_name: neo_watch_backend_prod
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ica_ops}
-      REDIS_URL: redis://redis:6379
-      PORT: 3001
+      PORT: 4000
       NODE_ENV: production
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-neo_user}:${POSTGRES_PASSWORD:-neo_password}@postgres:5432/${POSTGRES_DB:-neo_watch}
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
-      RESEND_API_KEY: ${RESEND_API_KEY}
-      FROM_EMAIL: ${FROM_EMAIL}
-      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
-      # Add other env vars here
+      NASA_API_KEY: ${NASA_API_KEY:-DEMO_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "3001:3001"
     restart: always
     networks:
       - dokploy-network
+  # }}}
 
-  # Web Frontend
-  web:
+  # {{{ Frontend Application
+  frontend:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+      context: ./neo-watch
+      dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://server:3001}
-        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://server:3001}
-    container_name: ica_web_prod
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:4000}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://backend:4000}
+    container_name: neo_watch_frontend_prod
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://server:3001}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:4000}
       NODE_ENV: production
     ports:
       - "3005:3000"
+    depends_on:
+      - backend
     restart: always
     networks:
       - dokploy-network
+  # }}}
 
+# {{{ Volumes
 volumes:
   postgres_data_prod:
   redis_data_prod:
+# }}}
 
+# {{{ Networks
 networks:
   dokploy-network:
     external: true
+# }}}
